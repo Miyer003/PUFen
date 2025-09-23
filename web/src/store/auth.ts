@@ -16,6 +16,8 @@ interface AuthState {
   updateUser: (user: User) => void;
   updatePointsAccount: (account: PointsAccount) => void;
   setLoading: (loading: boolean) => void;
+  setUser: (user: User | null) => void;
+  setIsAuthenticated: (authenticated: boolean) => void;
   checkAuth: () => Promise<void>;
 }
 
@@ -57,6 +59,14 @@ export const useAuthStore = create<AuthState>()(
 
       setLoading: (loading: boolean) => {
         set({ loading });
+      },
+
+      setUser: (user: User | null) => {
+        set({ user });
+      },
+
+      setIsAuthenticated: (authenticated: boolean) => {
+        set({ isAuthenticated: authenticated });
       },
 
       checkAuth: async () => {

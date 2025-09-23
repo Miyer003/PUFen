@@ -94,7 +94,25 @@ const Footer = styled.div`
 const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const login = useAuthStore((state) => state.login);
+  const { login, setUser, setIsAuthenticated } = useAuthStore();
+
+  // 开发模式快速登录
+  const handleDevLogin = () => {
+    const mockUser = {
+      id: 'dev-user-001',
+      username: '开发测试用户',
+      phone: '13800138000',
+      isNewUser: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    setUser(mockUser);
+    setIsAuthenticated(true);
+    
+    message.success('开发模式登录成功！');
+    navigate('/');
+  };
 
   const onFinish = async (values: LoginRequest) => {
     try {
@@ -166,6 +184,25 @@ const Login: React.FC = () => {
               登录
             </Button>
           </Form.Item>
+          
+          {/* 开发模式快速登录 */}
+          {(typeof import.meta !== 'undefined' && import.meta.env?.DEV) && (
+            <Form.Item>
+              <Button
+                type="dashed"
+                block
+                size="large"
+                onClick={handleDevLogin}
+                style={{ 
+                  borderColor: '#4facfe', 
+                  color: '#4facfe',
+                  background: 'rgba(79, 172, 254, 0.1)'
+                }}
+              >
+                🔧 开发模式登录
+              </Button>
+            </Form.Item>
+          )}
         </StyledForm>
         
         <Footer>
