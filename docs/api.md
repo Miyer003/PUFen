@@ -29,20 +29,20 @@ Base URLs:
 
 - HTTP Authentication, scheme: bearer
 
+- HTTP Authentication, scheme: bearer
+
 # 认证
 
 ## POST 用户注册
 
 POST /auth/register
 
+新用户注册账号
+
 > Body 请求参数
 
 ```json
-{
-  "username": "张三",
-  "phone": "13800138000",
-  "password": "123456"
-}
+{}
 ```
 
 ### 请求参数
@@ -50,9 +50,6 @@ POST /auth/register
 |名称|位置|类型|必选|说明|
 |---|---|---|---|---|
 |body|body|object| 是 |none|
-|» username|body|string| 是 |用户昵称|
-|» phone|body|string| 是 |手机号|
-|» password|body|string| 是 |密码|
 
 > 返回示例
 
@@ -66,7 +63,8 @@ POST /auth/register
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "username": "张三",
     "phone": "13800138000",
-    "isNewUser": true
+    "isNewUser": true,
+    "createdAt": "2024-01-15T10:30:00.000Z"
   },
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 }
@@ -77,8 +75,24 @@ POST /auth/register
 ```json
 {
   "success": false,
+  "message": "参数验证失败",
+  "code": 400,
+  "details": [
+    {
+      "field": "phone",
+      "message": "手机号格式不正确"
+    }
+  ]
+}
+```
+
+> 409 Response
+
+```json
+{
+  "success": false,
   "message": "手机号已存在",
-  "code": 400
+  "code": 409
 }
 ```
 
@@ -87,42 +101,21 @@ POST /auth/register
 |状态码|状态码含义|说明|数据模型|
 |---|---|---|---|
 |201|[Created](https://tools.ietf.org/html/rfc7231#section-6.3.2)|注册成功|Inline|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|参数错误|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|参数验证失败|Inline|
+|409|[Conflict](https://tools.ietf.org/html/rfc7231#section-6.5.8)|手机号已存在|Inline|
 
 ### 返回数据结构
-
-状态码 **201**
-
-|名称|类型|必选|约束|中文名|说明|
-|---|---|---|---|---|---|
-|» success|boolean|false|none||none|
-|» message|string|false|none||none|
-|» data|object|false|none||none|
-|»» id|string(uuid)|false|none||none|
-|»» username|string|false|none||none|
-|»» phone|string|false|none||none|
-|»» isNewUser|boolean|false|none||none|
-|» token|string|false|none||none|
-
-状态码 **400**
-
-|名称|类型|必选|约束|中文名|说明|
-|---|---|---|---|---|---|
-|» success|boolean|false|none||none|
-|» message|string|false|none||none|
-|» code|integer|false|none||none|
 
 ## POST 用户登录
 
 POST /auth/login
 
+用户登录系统
+
 > Body 请求参数
 
 ```json
-{
-  "phone": "13800138000",
-  "password": "123456"
-}
+{}
 ```
 
 ### 请求参数
@@ -130,8 +123,6 @@ POST /auth/login
 |名称|位置|类型|必选|说明|
 |---|---|---|---|---|
 |body|body|object| 是 |none|
-|» phone|body|string| 是 |none|
-|» password|body|string| 是 |none|
 
 > 返回示例
 
@@ -151,30 +142,30 @@ POST /auth/login
 }
 ```
 
+> 401 Response
+
+```json
+{
+  "success": false,
+  "message": "用户名或密码错误",
+  "code": 401
+}
+```
+
 ### 返回结果
 
 |状态码|状态码含义|说明|数据模型|
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|登录成功|Inline|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|用户名或密码错误|Inline|
 
 ### 返回数据结构
-
-状态码 **200**
-
-|名称|类型|必选|约束|中文名|说明|
-|---|---|---|---|---|---|
-|» success|boolean|false|none||none|
-|» message|string|false|none||none|
-|» data|object|false|none||none|
-|»» id|string(uuid)|false|none||none|
-|»» username|string|false|none||none|
-|»» phone|string|false|none||none|
-|»» isNewUser|boolean|false|none||none|
-|» token|string|false|none||none|
 
 ## GET 获取用户信息
 
 GET /auth/profile
+
+获取当前登录用户信息
 
 > 返回示例
 
@@ -183,6 +174,7 @@ GET /auth/profile
 ```json
 {
   "success": true,
+  "message": "获取成功",
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "username": "张三",
@@ -193,27 +185,137 @@ GET /auth/profile
 }
 ```
 
+> 401 Response
+
+```json
+{
+  "success": false,
+  "message": "Token已失效或未提供",
+  "code": 401
+}
+```
+
 ### 返回结果
 
 |状态码|状态码含义|说明|数据模型|
 |---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|成功|Inline|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|获取成功|Inline|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|未授权或Token失效|Inline|
 
 ### 返回数据结构
 
-状态码 **200**
+# 积分
 
-|名称|类型|必选|约束|中文名|说明|
-|---|---|---|---|---|---|
-|» success|boolean|false|none||none|
-|» data|object|false|none||none|
-|»» id|string(uuid)|false|none||none|
-|»» username|string|false|none||none|
-|»» phone|string|false|none||none|
-|»» isNewUser|boolean|false|none||none|
-|»» createdAt|string(date-time)|false|none||none|
+## GET 获取积分账户信息
+
+GET /points/account
+
+获取当前用户的积分账户详情
+
+> 返回示例
+
+> 200 Response
+
+```json
+{
+  "success": true,
+  "message": "获取成功",
+  "data": {
+    "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+    "userId": "550e8400-e29b-41d4-a716-446655440000",
+    "balance": 150,
+    "totalEarned": 300,
+    "totalUsed": 150
+  }
+}
+```
+
+> 401 Response
+
+```json
+{
+  "success": false,
+  "message": "Token已失效或未提供",
+  "code": 401
+}
+```
+
+### 返回结果
+
+|状态码|状态码含义|说明|数据模型|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|获取成功|Inline|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|未授权或Token失效|Inline|
+
+### 返回数据结构
 
 # 签到
+
+## GET 获取签到状态
+
+GET /signin
+
+获取当前用户的签到状态和本周签到日历
+
+> 返回示例
+
+> 200 Response
+
+```json
+{
+  "success": true,
+  "message": "获取成功",
+  "data": {
+    "todaySigned": false,
+    "continuousDays": 3,
+    "weekSignInStatus": [
+      {
+        "date": "2024-01-15",
+        "signed": true,
+        "points": 10,
+        "isToday": false
+      },
+      {
+        "date": "2024-01-16",
+        "signed": true,
+        "points": 15,
+        "isToday": false
+      },
+      {
+        "date": "2024-01-17",
+        "signed": true,
+        "points": 10,
+        "isToday": false
+      },
+      {
+        "date": "2024-01-18",
+        "signed": false,
+        "points": 0,
+        "isToday": true
+      }
+    ]
+  }
+}
+```
+
+> 401 Response
+
+```json
+{
+  "success": false,
+  "message": "Token已失效或未提供",
+  "code": 401
+}
+```
+
+### 返回结果
+
+|状态码|状态码含义|说明|数据模型|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|获取成功|Inline|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|未授权或Token失效|Inline|
+
+### 返回数据结构
 
 ## POST 每日签到
 
@@ -231,9 +333,30 @@ POST /signin
   "message": "签到成功",
   "data": {
     "pointsEarned": 10,
-    "continuousDays": 3,
-    "hasBonus": false
+    "continuousDays": 4,
+    "hasBonus": false,
+    "bonusCoupon": null
   }
+}
+```
+
+> 400 Response
+
+```json
+{
+  "success": false,
+  "message": "今日已签到",
+  "code": 400
+}
+```
+
+> 401 Response
+
+```json
+{
+  "success": false,
+  "message": "Token已失效或未提供",
+  "code": 401
 }
 ```
 
@@ -243,26 +366,9 @@ POST /signin
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|签到成功|Inline|
 |400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|今日已签到|Inline|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|未授权或Token失效|Inline|
 
 ### 返回数据结构
-
-状态码 **200**
-
-|名称|类型|必选|约束|中文名|说明|
-|---|---|---|---|---|---|
-|» success|boolean|false|none||none|
-|» message|string|false|none||none|
-|» data|object|false|none||none|
-|»» pointsEarned|number|false|none||none|
-|»» continuousDays|number|false|none||none|
-|»» hasBonus|boolean|false|none||none|
-
-状态码 **400**
-
-|名称|类型|必选|约束|中文名|说明|
-|---|---|---|---|---|---|
-|» success|boolean|false|none||none|
-|» message|string|false|none||none|
 
 ## POST 补签
 
@@ -273,10 +379,7 @@ POST /signin/makeup
 > Body 请求参数
 
 ```json
-{
-  "date": "2023-10-01",
-  "method": "points"
-}
+{}
 ```
 
 ### 请求参数
@@ -284,15 +387,6 @@ POST /signin/makeup
 |名称|位置|类型|必选|说明|
 |---|---|---|---|---|
 |body|body|object| 是 |none|
-|» date|body|string(date)| 是 |none|
-|» method|body|string| 是 |none|
-
-#### 枚举值
-
-|属性|值|
-|---|---|
-|» method|points|
-|» method|order|
 
 > 返回示例
 
@@ -309,33 +403,126 @@ POST /signin/makeup
 }
 ```
 
+> 补签失败
+
+```json
+{
+  "success": false,
+  "message": "该日期已补签",
+  "code": 400
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "积分不足",
+  "code": 400
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "只能补签过去7天内的日期",
+  "code": 400
+}
+```
+
+> 401 Response
+
+```json
+{
+  "success": false,
+  "message": "Token已失效或未提供",
+  "code": 401
+}
+```
+
 ### 返回结果
 
 |状态码|状态码含义|说明|数据模型|
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|补签成功|Inline|
 |400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|补签失败|Inline|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|未授权或Token失效|Inline|
 
 ### 返回数据结构
 
-状态码 **200**
+# 团队
 
-|名称|类型|必选|约束|中文名|说明|
-|---|---|---|---|---|---|
-|» success|boolean|false|none||none|
-|» message|string|false|none||none|
-|» data|object|false|none||none|
-|»» pointsEarned|number|false|none||none|
-|»» pointsCost|number|false|none||none|
+## GET 获取团队列表
 
-状态码 **400**
+GET /teams
 
-|名称|类型|必选|约束|中文名|说明|
-|---|---|---|---|---|---|
-|» success|boolean|false|none||none|
-|» message|string|false|none||none|
+获取可加入的团队列表，支持按状态筛选
 
-# 组队
+### 请求参数
+
+|名称|位置|类型|必选|说明|
+|---|---|---|---|---|
+|status|query|string| 否 |团队状态筛选|
+|page|query|integer| 否 |页码|
+|limit|query|integer| 否 |每页数量|
+
+#### 枚举值
+
+|属性|值|
+|---|---|
+|status|active|
+|status|completed|
+|status|expired|
+
+> 返回示例
+
+> 200 Response
+
+```json
+{
+  "success": true,
+  "message": "获取成功",
+  "data": {
+    "teams": [
+      {
+        "id": "a4ede8ba-7c0a-4485-8763-cbd9b282fbec",
+        "captainId": "550e8400-e29b-41d4-a716-446655440000",
+        "name": "优秀团队",
+        "startTime": "2024-01-15T10:30:00.000Z",
+        "endTime": "2024-01-15T13:30:00.000Z",
+        "totalPoints": 100,
+        "status": "active",
+        "memberCount": 3,
+        "remainingTime": 7200
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 50,
+      "totalPages": 3
+    }
+  }
+}
+```
+
+> 401 Response
+
+```json
+{
+  "success": false,
+  "message": "Token已失效或未提供",
+  "code": 401
+}
+```
+
+### 返回结果
+
+|状态码|状态码含义|说明|数据模型|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|获取成功|Inline|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|未授权或Token失效|Inline|
+
+### 返回数据结构
 
 ## POST 创建团队
 
@@ -346,9 +533,7 @@ POST /teams
 > Body 请求参数
 
 ```json
-{
-  "name": "优秀团队"
-}
+{}
 ```
 
 ### 请求参数
@@ -356,7 +541,6 @@ POST /teams
 |名称|位置|类型|必选|说明|
 |---|---|---|---|---|
 |body|body|object| 是 |none|
-|» name|body|string| 是 |none|
 
 > 返回示例
 
@@ -366,7 +550,55 @@ POST /teams
 {
   "success": true,
   "message": "团队创建成功",
-  "data": {}
+  "data": {
+    "id": "a4ede8ba-7c0a-4485-8763-cbd9b282fbec",
+    "captainId": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "优秀团队",
+    "startTime": "2024-01-15T10:30:00.000Z",
+    "endTime": "2024-01-15T13:30:00.000Z",
+    "status": "active",
+    "memberCount": 1,
+    "remainingTime": 10800,
+    "captainInfo": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "username": "张三",
+      "phone": "13800138000",
+      "isNewUser": true
+    },
+    "members": [
+      {
+        "userInfo": {
+          "id": "550e8400-e29b-41d4-a716-446655440000",
+          "username": "张三",
+          "phone": "13800138000",
+          "isNewUser": true
+        },
+        "role": "captain",
+        "pointsEarned": 50,
+        "joinedAt": "2024-01-15T10:30:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+> 400 Response
+
+```json
+{
+  "success": false,
+  "message": "已有活跃团队，不能重复创建",
+  "code": 400
+}
+```
+
+> 401 Response
+
+```json
+{
+  "success": false,
+  "message": "Token已失效或未提供",
+  "code": 401
 }
 ```
 
@@ -374,17 +606,63 @@ POST /teams
 
 |状态码|状态码含义|说明|数据模型|
 |---|---|---|---|
-|201|[Created](https://tools.ietf.org/html/rfc7231#section-6.3.2)|团队创建成功|Inline|
+|201|[Created](https://tools.ietf.org/html/rfc7231#section-6.3.2)|创建成功|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|创建失败|Inline|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|未授权或Token失效|Inline|
 
 ### 返回数据结构
 
-状态码 **201**
+## GET 获取团队详情
 
-|名称|类型|必选|约束|中文名|说明|
-|---|---|---|---|---|---|
-|» success|boolean|false|none||none|
-|» message|string|false|none||none|
-|» data|object|false|none||none|
+GET /teams/{teamId}
+
+获取指定团队的详细信息
+
+### 请求参数
+
+|名称|位置|类型|必选|说明|
+|---|---|---|---|---|
+|teamId|path|string(uuid)| 是 |none|
+
+> 返回示例
+
+> 200 Response
+
+```json
+{
+  "data": {}
+}
+```
+
+> 401 Response
+
+```json
+{
+  "success": false,
+  "message": "Token已失效或未提供",
+  "code": 401
+}
+```
+
+> 404 Response
+
+```json
+{
+  "success": false,
+  "message": "资源不存在",
+  "code": 404
+}
+```
+
+### 返回结果
+
+|状态码|状态码含义|说明|数据模型|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|获取成功|Inline|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|未授权或Token失效|Inline|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|资源不存在|Inline|
+
+### 返回数据结构
 
 ## POST 加入团队
 
@@ -396,7 +674,7 @@ POST /teams/{teamId}/join
 
 |名称|位置|类型|必选|说明|
 |---|---|---|---|---|
-|teamId|path|string| 是 |团队ID|
+|teamId|path|string(uuid)| 是 |none|
 
 > 返回示例
 
@@ -408,8 +686,63 @@ POST /teams/{teamId}/join
   "message": "加入团队成功",
   "data": {
     "pointsEarned": 50,
-    "teamInfo": {}
+    "teamInfo": {
+      "id": "a4ede8ba-7c0a-4485-8763-cbd9b282fbec",
+      "captainId": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "优秀团队",
+      "startTime": "2024-01-15T10:30:00.000Z",
+      "endTime": "2024-01-15T13:30:00.000Z",
+      "status": "active",
+      "memberCount": 4,
+      "remainingTime": 5400
+    }
   }
+}
+```
+
+> 加入失败
+
+```json
+{
+  "success": false,
+  "message": "团队已满",
+  "code": 400
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "团队已过期",
+  "code": 400
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "已在团队中",
+  "code": 400
+}
+```
+
+> 401 Response
+
+```json
+{
+  "success": false,
+  "message": "Token已失效或未提供",
+  "code": 401
+}
+```
+
+> 404 Response
+
+```json
+{
+  "success": false,
+  "message": "资源不存在",
+  "code": 404
 }
 ```
 
@@ -419,25 +752,10 @@ POST /teams/{teamId}/join
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|加入成功|Inline|
 |400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|加入失败|Inline|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|未授权或Token失效|Inline|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|资源不存在|Inline|
 
 ### 返回数据结构
-
-状态码 **200**
-
-|名称|类型|必选|约束|中文名|说明|
-|---|---|---|---|---|---|
-|» success|boolean|false|none||none|
-|» message|string|false|none||none|
-|» data|object|false|none||none|
-|»» pointsEarned|number|false|none||none|
-|»» teamInfo|object|false|none||none|
-
-状态码 **400**
-
-|名称|类型|必选|约束|中文名|说明|
-|---|---|---|---|---|---|
-|» success|boolean|false|none||none|
-|» message|string|false|none||none|
 
 # 兑换
 
@@ -445,7 +763,7 @@ POST /teams/{teamId}/join
 
 GET /rewards
 
-获取当前可兑换的商品列表
+获取当前可兑换的商品列表和阶段信息
 
 > 返回示例
 
@@ -454,9 +772,34 @@ GET /rewards
 ```json
 {
   "success": true,
-  "data": [
-    {}
-  ]
+  "message": "获取成功",
+  "data": {
+    "items": [
+      {
+        "id": "0e4a4644-7d75-4d9d-8c9c-d029d4d9b698",
+        "name": "满29减4优惠券",
+        "description": "满29元减4元，有效期7天",
+        "pointsCost": 20,
+        "couponType": "满29减4",
+        "couponValue": 4,
+        "conditionAmount": 29,
+        "stock": 100,
+        "stage": 1,
+        "isLimited": true
+      }
+    ],
+    "currentStage": 1
+  }
+}
+```
+
+> 401 Response
+
+```json
+{
+  "success": false,
+  "message": "Token已失效或未提供",
+  "code": 401
 }
 ```
 
@@ -465,15 +808,9 @@ GET /rewards
 |状态码|状态码含义|说明|数据模型|
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|获取成功|Inline|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|未授权或Token失效|Inline|
 
 ### 返回数据结构
-
-状态码 **200**
-
-|名称|类型|必选|约束|中文名|说明|
-|---|---|---|---|---|---|
-|» success|boolean|false|none||none|
-|» data|[object]|false|none||none|
 
 ## POST 兑换商品
 
@@ -484,9 +821,7 @@ POST /rewards/exchange
 > Body 请求参数
 
 ```json
-{
-  "rewardItemId": "uuid"
-}
+{}
 ```
 
 ### 请求参数
@@ -494,7 +829,6 @@ POST /rewards/exchange
 |名称|位置|类型|必选|说明|
 |---|---|---|---|---|
 |body|body|object| 是 |none|
-|» rewardItemId|body|string| 是 |none|
 
 > 返回示例
 
@@ -506,8 +840,45 @@ POST /rewards/exchange
   "message": "兑换成功",
   "data": {
     "couponCode": "CODE123456",
-    "pointsCost": 20
+    "pointsCost": 20,
+    "newBalance": 130
   }
+}
+```
+
+> 兑换失败
+
+```json
+{
+  "success": false,
+  "message": "积分不足",
+  "code": 400
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "库存不足",
+  "code": 400
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "当前阶段商品未解锁",
+  "code": 400
+}
+```
+
+> 401 Response
+
+```json
+{
+  "success": false,
+  "message": "Token已失效或未提供",
+  "code": 401
 }
 ```
 
@@ -517,27 +888,77 @@ POST /rewards/exchange
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|兑换成功|Inline|
 |400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|兑换失败|Inline|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|未授权或Token失效|Inline|
 
 ### 返回数据结构
 
-状态码 **200**
+## GET 获取兑换记录
 
-|名称|类型|必选|约束|中文名|说明|
-|---|---|---|---|---|---|
-|» success|boolean|false|none||none|
-|» message|string|false|none||none|
-|» data|object|false|none||none|
-|»» couponCode|string|false|none||none|
-|»» pointsCost|number|false|none||none|
+GET /rewards/records
 
-状态码 **400**
+获取当前用户的兑换记录
 
-|名称|类型|必选|约束|中文名|说明|
-|---|---|---|---|---|---|
-|» success|boolean|false|none||none|
-|» message|string|false|none||none|
+### 请求参数
 
-# 查询
+|名称|位置|类型|必选|说明|
+|---|---|---|---|---|
+|page|query|integer| 否 |页码|
+|limit|query|integer| 否 |每页数量|
+
+> 返回示例
+
+> 200 Response
+
+```json
+{
+  "success": true,
+  "message": "获取成功",
+  "data": {
+    "records": [
+      {
+        "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+        "userId": "550e8400-e29b-41d4-a716-446655440000",
+        "rewardItemId": "0e4a4644-7d75-4d9d-8c9c-d029d4d9b698",
+        "rewardItemInfo": {
+          "name": "满29减4优惠券",
+          "pointsCost": 20
+        },
+        "pointsCost": 20,
+        "couponCode": "CODE123456",
+        "status": "completed",
+        "createdAt": "2024-01-15T10:30:00.000Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 5,
+      "totalPages": 1
+    }
+  }
+}
+```
+
+> 401 Response
+
+```json
+{
+  "success": false,
+  "message": "Token已失效或未提供",
+  "code": 401
+}
+```
+
+### 返回结果
+
+|状态码|状态码含义|说明|数据模型|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|获取成功|Inline|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|未授权或Token失效|Inline|
+
+### 返回数据结构
+
+# 记录
 
 ## GET 获取积分流水
 
@@ -549,8 +970,17 @@ GET /records/points
 
 |名称|位置|类型|必选|说明|
 |---|---|---|---|---|
-|page|query|integer| 否 |none|
-|limit|query|integer| 否 |none|
+|type|query|string| 否 |流水类型筛选|
+|page|query|integer| 否 |页码|
+|limit|query|integer| 否 |每页数量|
+
+#### 枚举值
+
+|属性|值|
+|---|---|
+|type|earn|
+|type|use|
+|type|expire|
 
 > 返回示例
 
@@ -559,14 +989,37 @@ GET /records/points
 ```json
 {
   "success": true,
+  "message": "获取成功",
   "data": {
     "records": [
-      {}
+      {
+        "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+        "amount": 10,
+        "type": "earn",
+        "source": "signin",
+        "description": "周一签到",
+        "balanceBefore": 140,
+        "balanceAfter": 150,
+        "createdAt": "2024-01-15T10:30:00.000Z"
+      }
     ],
-    "total": 100,
-    "page": 1,
-    "limit": 20
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 100,
+      "totalPages": 5
+    }
   }
+}
+```
+
+> 401 Response
+
+```json
+{
+  "success": false,
+  "message": "Token已失效或未提供",
+  "code": 401
 }
 ```
 
@@ -575,21 +1028,136 @@ GET /records/points
 |状态码|状态码含义|说明|数据模型|
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|获取成功|Inline|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|未授权或Token失效|Inline|
 
 ### 返回数据结构
 
-状态码 **200**
+## GET 获取团队记录
 
-|名称|类型|必选|约束|中文名|说明|
-|---|---|---|---|---|---|
-|» success|boolean|false|none||none|
-|» data|object|false|none||none|
-|»» records|[object]|false|none||none|
-|»» total|integer|false|none||none|
-|»» page|integer|false|none||none|
-|»» limit|integer|false|none||none|
+GET /records/teams
+
+获取用户参与的团队记录
+
+### 请求参数
+
+|名称|位置|类型|必选|说明|
+|---|---|---|---|---|
+|page|query|integer| 否 |页码|
+|limit|query|integer| 否 |每页数量|
+
+> 返回示例
+
+> 200 Response
+
+```json
+{
+  "success": true,
+  "message": "获取成功",
+  "data": {
+    "records": [
+      {
+        "teamId": "a4ede8ba-7c0a-4485-8763-cbd9b282fbec",
+        "teamName": "优秀团队",
+        "role": "member",
+        "pointsEarned": 50,
+        "joinedAt": "2024-01-15T10:30:00.000Z",
+        "status": "completed"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 3,
+      "totalPages": 1
+    }
+  }
+}
+```
+
+> 401 Response
+
+```json
+{
+  "success": false,
+  "message": "Token已失效或未提供",
+  "code": 401
+}
+```
+
+### 返回结果
+
+|状态码|状态码含义|说明|数据模型|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|获取成功|Inline|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|未授权或Token失效|Inline|
+
+### 返回数据结构
 
 # 数据模型
+
+<h2 id="tocS_UnauthorizedError">UnauthorizedError</h2>
+
+<a id="schemaunauthorizederror"></a>
+<a id="schema_UnauthorizedError"></a>
+<a id="tocSunauthorizederror"></a>
+<a id="tocsunauthorizederror"></a>
+
+```json
+{}
+
+```
+
+### 属性
+
+*None*
+
+<h2 id="tocS_ForbiddenError">ForbiddenError</h2>
+
+<a id="schemaforbiddenerror"></a>
+<a id="schema_ForbiddenError"></a>
+<a id="tocSforbiddenerror"></a>
+<a id="tocsforbiddenerror"></a>
+
+```json
+{}
+
+```
+
+### 属性
+
+*None*
+
+<h2 id="tocS_NotFoundError">NotFoundError</h2>
+
+<a id="schemanotfounderror"></a>
+<a id="schema_NotFoundError"></a>
+<a id="tocSnotfounderror"></a>
+<a id="tocsnotfounderror"></a>
+
+```json
+{}
+
+```
+
+### 属性
+
+*None*
+
+<h2 id="tocS_ValidationError">ValidationError</h2>
+
+<a id="schemavalidationerror"></a>
+<a id="schema_ValidationError"></a>
+<a id="tocSvalidationerror"></a>
+<a id="tocsvalidationerror"></a>
+
+```json
+{}
+
+```
+
+### 属性
+
+*None*
 
 <h2 id="tocS_User">User</h2>
 
