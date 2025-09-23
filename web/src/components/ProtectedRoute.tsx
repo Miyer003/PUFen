@@ -22,6 +22,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         email: 'test@example.com',
         phone: '13800138000',
         avatar: '',
+        isNewUser: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };

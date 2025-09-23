@@ -7,6 +7,8 @@ import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import Points from '@/pages/Points';
 import Records from '@/pages/Records';
+import Rules from '@/pages/Rules';
+import Profile from '@/pages/Profile';
 import MobileDemo from '@/pages/MobileDemo';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
@@ -58,6 +60,18 @@ const App: React.FC = () => {
           <Route path="/records" element={
             <ProtectedRoute>
               <Records />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/rules" element={
+            <ProtectedRoute>
+              <Rules />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <Profile />
             </ProtectedRoute>
           } />
           

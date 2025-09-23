@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { Card, Button, message, Badge } from 'antd';
 import { 
@@ -7,7 +8,8 @@ import {
   BellOutlined, 
   ShareAltOutlined,
   HeartOutlined,
-  ExperimentOutlined
+  ExperimentOutlined,
+  LeftOutlined
 } from '@ant-design/icons';
 import { getDeviceInfo, vibrate, copyToClipboard } from '../utils/mobile';
 import { universalShare } from '../utils/share';
@@ -18,6 +20,13 @@ const DemoContainer = styled.div`
   margin: 0 auto;
   background: #f5f5f5;
   min-height: 100vh;
+`;
+
+const BackButton = styled(Button)`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
 `;
 
 const DemoCard = styled(Card)`
@@ -84,6 +93,7 @@ const StatusBadge = styled(Badge)`
 `;
 
 const MobileDemo: React.FC = () => {
+  const navigate = useNavigate();
   const [deviceInfo] = useState(() => getDeviceInfo());
   const [networkStatus, setNetworkStatus] = useState<any>({});
   const [touchCount, setTouchCount] = useState(0);
@@ -194,6 +204,15 @@ const MobileDemo: React.FC = () => {
 
   return (
     <DemoContainer>
+      <BackButton 
+        icon={<LeftOutlined />} 
+        onClick={() => navigate('/')}
+        size="large"
+        style={{ backgroundColor: '#f0f0f0', border: 'none' }}
+      >
+        返回主页
+      </BackButton>
+      
       <h1 style={{ textAlign: 'center', marginBottom: 24, color: '#333' }}>
         📱 H5移动端功能演示
       </h1>

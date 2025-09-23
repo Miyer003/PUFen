@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { message } from 'antd';
 import {
-  LeftOutlined,
   UnorderedListOutlined,
   QuestionCircleOutlined,
 } from '@ant-design/icons';
@@ -27,30 +26,32 @@ const Header = styled.div`
   text-align: center;
 `;
 
-const BackButton = styled.div`
-  position: absolute;
-  left: 20px;
-  top: 50px;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-`;
-
-const ActionButton = styled.div`
+const ActionButtons = styled.div`
   position: absolute;
   right: 20px;
   top: 50px;
+  display: flex;
+  gap: 8px;
+`;
+
+const ActionButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
   color: white;
-  font-size: 14px;
   cursor: pointer;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 16px;
   
   .label {
     margin-left: 4px;
+  }
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
   }
 `;
 
@@ -58,6 +59,12 @@ const Title = styled.h1`
   font-size: 18px;
   font-weight: 600;
   margin: 0;
+  cursor: pointer;
+  user-select: none;
+  
+  &:active {
+    opacity: 0.7;
+  }
 `;
 
 const PointsSection = styled.div`
@@ -493,21 +500,46 @@ const Points: React.FC = () => {
     );
   };
 
+  const handleTitleLongPress = () => {
+    navigate('/profile');
+  };
+
   return (
     <SafeArea>
       <PullToRefresh onRefresh={loadData}>
         <Container>
           <Header>
-            <BackButton onClick={() => navigate(-1)}>
-              <LeftOutlined />
-            </BackButton>
+            <Title 
+              onTouchStart={() => {
+                let pressTimer = setTimeout(() => {
+                  vibrate(100);
+                  handleTitleLongPress();
+                }, 800);
+                
+                const clearTimer = () => {
+                  clearTimeout(pressTimer);
+                  document.removeEventListener('touchend', clearTimer);
+                  document.removeEventListener('touchmove', clearTimer);
+                };
+                
+                document.addEventListener('touchend', clearTimer);
+                document.addEventListener('touchmove', clearTimer);
+              }}
+            >
+              我的积分
+            </Title>
             
-            <Title>我的积分</Title>
-            
-            <ActionButton onClick={() => navigate('/records')}>
-              <UnorderedListOutlined />
-              <span className="label">记录 | 规则</span>
-            </ActionButton>
+            <ActionButtons>
+              <ActionButton onClick={() => navigate('/records')}>
+                <UnorderedListOutlined />
+                <span className="label">记录</span>
+              </ActionButton>
+              
+              <ActionButton onClick={() => navigate('/rules')}>
+                <span>📖</span>
+                <span className="label">规则</span>
+              </ActionButton>
+            </ActionButtons>
           </Header>
 
           <PointsSection>
@@ -533,28 +565,10 @@ const Points: React.FC = () => {
         </InviteSection>
 
         <RewardGrid>
-          <RewardItem onClick={() => navigate('/exchange')}>
-            <div className="icon">¥40</div>
-            <div className="title">40元免费领</div>
-            <div className="desc">满59元可用</div>
-          </RewardItem>
-          
-          <RewardItem>
-            <div className="icon">拼</div>
-            <div className="title">0.1元抢鸡蛋</div>
-            <div className="desc">2人团免运费</div>
-          </RewardItem>
-          
-          <RewardItem>
-            <div className="icon">¥10</div>
-            <div className="title">领:10元大额...</div>
-            <div className="desc">只需1人助力</div>
-          </RewardItem>
-          
-          <RewardItem>
-            <div className="icon">福</div>
-            <div className="title">福利中心</div>
-            <div className="desc">日日有福利</div>
+          <RewardItem onClick={() => navigate('/demo')} style={{ gridColumn: 'span 4' }}>
+            <div className="icon" style={{ background: '#667eea' }}>📱</div>
+            <div className="title">移动端功能演示</div>
+            <div className="desc">H5特性展示</div>
           </RewardItem>
         </RewardGrid>
 
@@ -570,21 +584,61 @@ const Points: React.FC = () => {
           
           <CouponGrid>
             <CouponItem>
-              <div className="amount">¥3</div>
-              <div className="condition">满59元可用</div>
-              <div className="title">59减3优惠券</div>
+              <div className="amount">¥4</div>
+              <div className="condition">满29元可用</div>
+              <div className="title">满29减4优惠券</div>
               <div className="points">
-                <span>🪙 29</span>
+                <span>🪙 5积分</span>
               </div>
               <button className="exchange-btn">兑换</button>
             </CouponItem>
             
             <CouponItem>
-              <div className="amount">¥10</div>
-              <div className="condition">满189元可用</div>
-              <div className="title">189减10优惠券</div>
+              <div className="amount">¥6</div>
+              <div className="condition">满39元可用</div>
+              <div className="title">满39减6优惠券</div>
               <div className="points">
-                <span>🪙 5</span>
+                <span>🪙 10积分</span>
+              </div>
+              <button className="exchange-btn">兑换</button>
+            </CouponItem>
+            
+            <CouponItem>
+              <div className="amount">¥8</div>
+              <div className="condition">满59元可用</div>
+              <div className="title">满59减8优惠券</div>
+              <div className="points">
+                <span>🪙 15积分</span>
+              </div>
+              <button className="exchange-btn">兑换</button>
+            </CouponItem>
+            
+            <CouponItem>
+              <div className="amount">¥12</div>
+              <div className="condition">满89元可用</div>
+              <div className="title">满89减12优惠券</div>
+              <div className="points">
+                <span>🪙 20积分</span>
+              </div>
+              <button className="exchange-btn">兑换</button>
+            </CouponItem>
+            
+            <CouponItem>
+              <div className="amount">¥15</div>
+              <div className="condition">满119元可用</div>
+              <div className="title">满119减15优惠券</div>
+              <div className="points">
+                <span>🪙 25积分</span>
+              </div>
+              <button className="exchange-btn">兑换</button>
+            </CouponItem>
+            
+            <CouponItem>
+              <div className="amount">¥20</div>
+              <div className="condition">满149元可用</div>
+              <div className="title">满149减20优惠券</div>
+              <div className="points">
+                <span>🪙 30积分</span>
               </div>
               <button className="exchange-btn">兑换</button>
             </CouponItem>
