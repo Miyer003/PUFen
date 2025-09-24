@@ -1,8 +1,10 @@
 import { FastifyPluginAsync } from "fastify";
 import { AppDataSource } from "../config/db";
 import { PointsAccount } from "../entities/PointsAccount";
+import { authHook } from "../middleware/auth.hook";
 
 export const pointsRoutes: FastifyPluginAsync = async (fastify) => {
+    fastify.addHook('preHandler', authHook);
     fastify.get('/points/account', async (req, reply) => {
         const userId = req.user!.id; // req.user由authMiddleware注入
         

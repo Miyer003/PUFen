@@ -1,53 +1,163 @@
-# 前端API使用文档
+# 积分系统接口文档
 
-本文档详细记录了前端应用中每个页面和组件使用的API接口，方便后端开发时优先实现对应接口。
+## 📋 接口目录
 
-## 🔄 核心认证流程 (Auth Service)
+### 🔐 认证模块 (3个接口)
+- `POST /api/auth/register` - 用户注册
+- `POST /api/auth/login` - 用户登录  
+- `GET /api/auth/profile` - 获取用户信息
 
-### 登录页面 (Login.tsx)
-**使用的API接口:**
-- `POST /auth/login` - 用户登录认证
+### 🏆 积分模块 (1个接口)
+- `GET /api/points/account` - 获取积分账户
 
-**使用场景:**
-```typescript
-// 用户登录
-const response = await authService.login({
-  phone: "13800138000",
-  password: "password123"
-});
-```
+### ✅ 签到模块 (4个接口)
+- `GET /api/signin/config` - 获取本周签到配置
+- `GET /api/signin/status` - 获取签到状态
+- `POST /api/signin` - 每日签到
+- `POST /api/signin/makeup` - 补签
 
-### 注册页面 (Register.tsx)
-**使用的API接口:**
-- `POST /auth/register` - 用户注册
+### 👥 团队模块 (5个接口)
+- `POST /api/teams` - 创建团队
+- `POST /api/teams/:teamId/join` - 加入团队
+- `GET /api/teams/my` - 获取我的团队记录
+- `GET /api/teams/:teamId` - 获取团队详情
+- `GET /api/teams/available` - 获取可加入团队列表
 
-**使用场景:**
-```typescript
-// 用户注册
-const response = await authService.register({
-  username: "张三",
-  phone: "13800138000", 
-  password: "password123"
-});
-```
+### 🎁 兑换模块 (3个接口)
+- `GET /api/rewards` - 获取可兑换商品列表
+- `POST /api/rewards/exchange` - 兑换商品
+- `GET /api/coupons/:couponCode` - 获取优惠券详情
 
-### 认证状态管理 (store/auth.ts)
-**使用的API接口:**
-- `GET /auth/profile` - 获取用户信息
-- Token管理和认证检查
-
-**使用场景:**
-```typescript
-// 应用启动时检查认证状态
-// 自动获取用户信息
-const response = await authService.getProfile();
-```
+### 📊 记录模块 (2个接口)
+- `GET /api/records/points` - 获取积分流水记录
+- `GET /api/records/exchange` - 获取兑换记录
 
 ---
 
-## 🏆 积分系统核心 (Points Service)
+## 前端接口使用情况
 
-### 积分主页 (Points.tsx)
+## 认证相关接口
+
+### 用户注册
+- **页面**: Register.tsx
+- **接口**: `POST /auth/register`
+- **请求格式**: `{ username: string, phone: string, password: string }`
+- **响应格式**: `{ success: boolean, message: string, data: { id, username, phone, isNewUser, createdAt }, token: string }`
+
+### 用户登录
+- **页面**: Login.tsx
+- **接口**: `POST /auth/login`
+- **请求格式**: `{ phone: string, password: string }`
+- **响应格式**: `{ success: boolean, message: string, data: { id, username, phone, isNewUser }, token: string }`
+
+### 获取用户信息
+- **页面**: 通过 auth store 调用
+- **接口**: `GET /auth/profile`
+- **请求格式**: 需要 Authorization header
+- **响应格式**: `{ success: boolean, data: User }`
+
+## 积分相关接口
+
+### 获取积分账户
+- **页面**: Points.tsx
+- **接口**: `GET /points/account`
+- **请求格式**: 需要 Authorization header
+- **响应格式**: `{ success: boolean, data: { id, userId, balance, totalEarned, totalUsed } }`
+
+### 获取本周签到配置
+- **页面**: Points.tsx
+- **接口**: `GET /signin/config`
+- **请求格式**: 需要 Authorization header
+- **响应格式**: `{ success: boolean, data: SignInConfig }`
+
+### 获取签到状态
+- **页面**: Points.tsx
+- **接口**: `GET /signin/status`
+- **请求格式**: 需要 Authorization header
+- **响应格式**: `{ success: boolean, data: { todaySignedIn: boolean, continuousDays: number, weeklyRecords: SignInRecord[] } }`
+
+### 每日签到
+- **页面**: Points.tsx
+- **接口**: `POST /signin`
+- **请求格式**: 需要 Authorization header
+- **响应格式**: `SignInResponse`
+
+### 补签
+- **页面**: Points.tsx
+- **接口**: `POST /signin/makeup`
+- **请求格式**: `{ date: string }`
+- **响应格式**: `SignInResponse`
+
+### 获取积分流水记录
+- **页面**: Records.tsx
+- **接口**: `GET /records/points`
+- **请求格式**: `{ page?, limit?, type? }`
+- **响应格式**: `PaginatedResponse`
+
+## 团队相关接口
+
+### 创建团队
+- **页面**: Points.tsx
+- **接口**: `POST /teams`
+- **请求格式**: `{ name: string }`
+- **响应格式**: `{ success: boolean, data: { team: Team, member: TeamMember, pointsEarned: number } }`
+
+### 加入团队
+- **页面**: (未在当前代码中找到调用)
+- **接口**: `POST /teams/:teamId/join`
+- **请求格式**: 需要 Authorization header
+- **响应格式**: `{ success: boolean, data: { pointsEarned: number, teamInfo: Team, memberInfo: TeamMember } }`
+
+### 获取我的团队记录
+- **页面**: Records.tsx
+- **接口**: `GET /teams/my`
+- **请求格式**: `{ page?, limit?, status? }`
+- **响应格式**: `PaginatedResponse<TeamMember & { team: Team }>`
+
+### 获取团队详情
+- **页面**: (未在当前代码中找到调用)
+- **接口**: `GET /teams/:teamId`
+- **请求格式**: 需要 Authorization header
+- **响应格式**: `{ success: boolean, data: { team: Team, members: Array } }`
+
+### 获取可加入团队列表
+- **页面**: (未在当前代码中找到调用)
+- **接口**: `GET /teams/available`
+- **请求格式**: `{ page?, limit? }`
+- **响应格式**: `PaginatedResponse<Team & { memberCount: number, captainName: string }>`
+
+## 奖励相关接口
+
+### 获取可兑换商品列表
+- **页面**: (未在当前代码中找到调用)
+- **接口**: `GET /rewards`
+- **请求格式**: `{ stage?, isLimited? }`
+- **响应格式**: `{ success: boolean, data: { stage1Items, stage2Items, currentStage, stage2Unlocked } }`
+
+### 兑换商品
+- **页面**: (未在当前代码中找到调用)
+- **接口**: `POST /rewards/exchange`
+- **请求格式**: `ExchangeRequest`
+- **响应格式**: `ExchangeResponse`
+
+### 获取兑换记录
+- **页面**: Records.tsx
+- **接口**: `GET /records/exchange`
+- **请求格式**: `{ page?, limit?, status? }`
+- **响应格式**: `PaginatedResponse<RewardRecord & { rewardItem: RewardItem }>`
+
+### 获取优惠券详情
+- **页面**: (未在当前代码中找到调用)
+- **接口**: `GET /coupons/:couponCode`
+- **请求格式**: 需要 Authorization header
+- **响应格式**: `{ success: boolean, data: { couponCode, couponType, couponValue, conditionAmount, status, expiryDate } }`
+
+## 注意事项
+
+1. 所有接口基础路径: `/api`
+2. 需要认证的接口都需要在 Authorization header 中携带 Bearer token
+3. 错误响应统一格式: `{ success: false, message: string }`
+4. 成功响应统一格式: `{ success: true, data?: any, message?: string }`
 **使用的API接口:**
 - `GET /points/account` - 获取积分账户信息
 - `GET /signin/config` - 获取本周签到配置

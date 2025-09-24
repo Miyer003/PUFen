@@ -5,9 +5,11 @@ import { PointsAccount } from '../entities/PointsAccount';
 import { hashPassword } from '../utils/password';
 import { signToken } from '../utils/jwt';
 import { loginBodyDto, registerBodyDto } from '../dto/auth.dto';
+import { authHook } from '../middleware/auth.hook';
 import bcrypt from 'bcrypt';
 
 export const authRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.addHook('preHandler', authHook);
   fastify.post(
     '/auth/register',
     {
@@ -91,6 +93,22 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
           isNewUser: user.isNewUser,
         },
         token,
+      });
+    }
+  );
+
+  fastify.get(
+    '/auth/profile',
+    async (req, reply) => {
+      const user = req.user!;
+
+      reply.send({
+        success: true,
+        id: user.id,
+        username: user.username,
+        phone: user.phone,
+        isNewUser: user.isNewUser,
+        createdAt: user.createdAt,
       });
     }
   );

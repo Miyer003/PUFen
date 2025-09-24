@@ -1,0 +1,1090 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "积分系统 API",
+    "description": "积分系统后端接口文档",
+    "version": "1.0.0",
+    "contact": {
+      "name": "开发团队"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000",
+      "description": "开发环境"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "ApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object"
+          }
+        },
+        "required": ["success"]
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "isNewUser": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PointsAccount": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "balance": {
+            "type": "integer"
+          },
+          "totalEarned": {
+            "type": "integer"
+          },
+          "totalUsed": {
+            "type": "integer"
+          }
+        }
+      },
+      "SignInConfig": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "weekStartDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "basePoints": {
+            "type": "integer"
+          },
+          "day1Multiplier": {
+            "type": "number"
+          },
+          "day2Multiplier": {
+            "type": "number"
+          },
+          "day3Multiplier": {
+            "type": "number"
+          },
+          "day4Multiplier": {
+            "type": "number"
+          },
+          "day5Multiplier": {
+            "type": "number"
+          },
+          "day6Multiplier": {
+            "type": "number"
+          },
+          "day7Multiplier": {
+            "type": "number"
+          },
+          "bonusDay": {
+            "type": "integer"
+          },
+          "bonusCoupon": {
+            "type": "string"
+          }
+        }
+      },
+      "Team": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "captainId": {
+            "type": "string"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "completed", "expired"]
+          },
+          "totalPoints": {
+            "type": "integer"
+          }
+        }
+      },
+      "PaginatedResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {}
+              },
+              "total": {
+                "type": "integer"
+              },
+              "page": {
+                "type": "integer"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "totalPages": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "认证",
+      "description": "用户认证相关接口"
+    },
+    {
+      "name": "积分",
+      "description": "积分账户相关接口"
+    },
+    {
+      "name": "签到",
+      "description": "签到功能相关接口"
+    },
+    {
+      "name": "团队",
+      "description": "团队功能相关接口"
+    },
+    {
+      "name": "兑换",
+      "description": "商品兑换相关接口"
+    },
+    {
+      "name": "记录",
+      "description": "历史记录相关接口"
+    }
+  ],
+  "paths": {
+    "/api/auth/register": {
+      "post": {
+        "tags": ["认证"],
+        "summary": "用户注册",
+        "description": "新用户注册账号",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "description": "用户昵称"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "description": "手机号码"
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "密码"
+                  }
+                },
+                "required": ["username", "phone", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "注册成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {"$ref": "#/components/schemas/ApiResponse"},
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {"$ref": "#/components/schemas/User"},
+                        "token": {
+                          "type": "string",
+                          "description": "JWT token"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "手机号已存在"
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["认证"],
+        "summary": "用户登录",
+        "description": "用户登录认证",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "type": "string",
+                    "description": "手机号码"
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "密码"
+                  }
+                },
+                "required": ["phone", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "登录成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {"$ref": "#/components/schemas/ApiResponse"},
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {"$ref": "#/components/schemas/User"},
+                        "token": {
+                          "type": "string",
+                          "description": "JWT token"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "用户名或密码错误"
+          }
+        }
+      }
+    },
+    "/api/auth/profile": {
+      "get": {
+        "tags": ["认证"],
+        "summary": "获取用户信息",
+        "description": "获取当前登录用户的信息",
+        "security": [{"bearerAuth": []}],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {"$ref": "#/components/schemas/ApiResponse"},
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {"$ref": "#/components/schemas/User"}
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未授权"
+          }
+        }
+      }
+    },
+    "/api/points/account": {
+      "get": {
+        "tags": ["积分"],
+        "summary": "获取积分账户",
+        "description": "获取用户积分账户信息",
+        "security": [{"bearerAuth": []}],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {"$ref": "#/components/schemas/ApiResponse"},
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {"$ref": "#/components/schemas/PointsAccount"}
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未授权"
+          }
+        }
+      }
+    },
+    "/api/signin/config": {
+      "get": {
+        "tags": ["签到"],
+        "summary": "获取本周签到配置",
+        "description": "获取当前周签到规则配置",
+        "security": [{"bearerAuth": []}],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {"$ref": "#/components/schemas/ApiResponse"},
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {"$ref": "#/components/schemas/SignInConfig"}
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/signin/status": {
+      "get": {
+        "tags": ["签到"],
+        "summary": "获取签到状态",
+        "description": "获取用户签到状态",
+        "security": [{"bearerAuth": []}],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {"$ref": "#/components/schemas/ApiResponse"},
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "todaySignedIn": {
+                              "type": "boolean",
+                              "description": "今天是否已签到"
+                            },
+                            "continuousDays": {
+                              "type": "integer",
+                              "description": "连续签到天数"
+                            },
+                            "weeklyRecords": {
+                              "type": "array",
+                              "description": "本周签到记录",
+                              "items": {
+                                "type": "object"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/signin": {
+      "post": {
+        "tags": ["签到"],
+        "summary": "每日签到",
+        "description": "用户每日签到",
+        "security": [{"bearerAuth": []}],
+        "responses": {
+          "200": {
+            "description": "签到成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {"$ref": "#/components/schemas/ApiResponse"},
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "pointsEarned": {
+                              "type": "integer",
+                              "description": "获得的积分"
+                            },
+                            "continuousDays": {
+                              "type": "integer",
+                              "description": "连续签到天数"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "今日已签到"
+          }
+        }
+      }
+    },
+    "/api/signin/makeup": {
+      "post": {
+        "tags": ["签到"],
+        "summary": "补签",
+        "description": "补签指定日期",
+        "security": [{"bearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "补签日期"
+                  }
+                },
+                "required": ["date"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "补签成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {"$ref": "#/components/schemas/ApiResponse"},
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "pointsCost": {
+                              "type": "integer",
+                              "description": "消耗的积分"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "积分不足或日期无效"
+          }
+        }
+      }
+    },
+    "/api/teams": {
+      "post": {
+        "tags": ["团队"],
+        "summary": "创建团队",
+        "description": "创建新团队",
+        "security": [{"bearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "团队名称"
+                  }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "创建成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {"$ref": "#/components/schemas/ApiResponse"},
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "team": {"$ref": "#/components/schemas/Team"},
+                            "member": {
+                              "type": "object"
+                            },
+                            "pointsEarned": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/teams/{teamId}/join": {
+      "post": {
+        "tags": ["团队"],
+        "summary": "加入团队",
+        "description": "加入指定团队",
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {
+            "name": "teamId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "团队ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "加入成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {"$ref": "#/components/schemas/ApiResponse"},
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "pointsEarned": {
+                              "type": "integer"
+                            },
+                            "teamInfo": {"$ref": "#/components/schemas/Team"},
+                            "memberInfo": {
+                              "type": "object"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "团队不存在"
+          }
+        }
+      }
+    },
+    "/api/teams/my": {
+      "get": {
+        "tags": ["团队"],
+        "summary": "获取我的团队记录",
+        "description": "获取用户参与的团队记录",
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "页码"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            },
+            "description": "每页数量"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["active", "completed", "expired"]
+            },
+            "description": "团队状态"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/PaginatedResponse"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/teams/{teamId}": {
+      "get": {
+        "tags": ["团队"],
+        "summary": "获取团队详情",
+        "description": "获取指定团队的详细信息",
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {
+            "name": "teamId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "团队ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {"$ref": "#/components/schemas/ApiResponse"},
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "team": {"$ref": "#/components/schemas/Team"},
+                            "members": {
+                              "type": "array",
+                              "items": {
+                                "type": "object"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/teams/available": {
+      "get": {
+        "tags": ["团队"],
+        "summary": "获取可加入团队列表",
+        "description": "获取当前可加入的团队列表",
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "页码"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            },
+            "description": "每页数量"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/PaginatedResponse"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rewards": {
+      "get": {
+        "tags": ["兑换"],
+        "summary": "获取可兑换商品列表",
+        "description": "获取可兑换的商品列表",
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {
+            "name": "stage",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "阶段"
+          },
+          {
+            "name": "isLimited",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "是否限量"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {"$ref": "#/components/schemas/ApiResponse"},
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "stage1Items": {
+                              "type": "array",
+                              "items": {"type": "object"}
+                            },
+                            "stage2Items": {
+                              "type": "array",
+                              "items": {"type": "object"}
+                            },
+                            "currentStage": {
+                              "type": "integer"
+                            },
+                            "stage2Unlocked": {
+                              "type": "boolean"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rewards/exchange": {
+      "post": {
+        "tags": ["兑换"],
+        "summary": "兑换商品",
+        "description": "使用积分兑换商品",
+        "security": [{"bearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "rewardItemId": {
+                    "type": "string",
+                    "description": "商品ID"
+                  }
+                },
+                "required": ["rewardItemId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "兑换成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {"$ref": "#/components/schemas/ApiResponse"},
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "couponCode": {
+                              "type": "string",
+                              "description": "优惠券码"
+                            },
+                            "pointsCost": {
+                              "type": "integer",
+                              "description": "消耗积分"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "积分不足"
+          }
+        }
+      }
+    },
+    "/api/coupons/{couponCode}": {
+      "get": {
+        "tags": ["兑换"],
+        "summary": "获取优惠券详情",
+        "description": "根据优惠券码获取优惠券详情",
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {
+            "name": "couponCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "优惠券码"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {"$ref": "#/components/schemas/ApiResponse"},
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "couponCode": {
+                              "type": "string"
+                            },
+                            "couponType": {
+                              "type": "string"
+                            },
+                            "couponValue": {
+                              "type": "number"
+                            },
+                            "conditionAmount": {
+                              "type": "number"
+                            },
+                            "status": {
+                              "type": "string"
+                            },
+                            "expiryDate": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "优惠券不存在"
+          }
+        }
+      }
+    },
+    "/api/records/points": {
+      "get": {
+        "tags": ["记录"],
+        "summary": "获取积分流水记录",
+        "description": "获取用户积分变动记录",
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "页码"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            },
+            "description": "每页数量"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["earn", "use", "expire"]
+            },
+            "description": "记录类型"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/PaginatedResponse"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/records/exchange": {
+      "get": {
+        "tags": ["记录"],
+        "summary": "获取兑换记录",
+        "description": "获取用户兑换记录",
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "页码"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            },
+            "description": "每页数量"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["pending", "completed", "cancelled"]
+            },
+            "description": "兑换状态"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/PaginatedResponse"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
