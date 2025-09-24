@@ -5,39 +5,37 @@ export class PointsTransaction {
     @PrimaryGeneratedColumn('uuid')
     id: string; // 流水ID，主键
 
-    @Column()
+    @Column({ type: 'varchar' })
     userId: string; // 关联的用户ID
 
-    @Column()
+    @Column({ type: 'varchar' })
     accountId: string; // 关联的积分账户ID
 
-    @Column()
+    @Column({ type: 'int' })
     amount: number; // 积分变动数量（正数为收入，负数为支出）
 
-    @Column({
-        type: 'enum',
-        enum: ['earn', 'use', 'expire']
+    @Column('varchar', { 
+        length: 20 
     })
     type: 'earn' | 'use' | 'expire'; // 积分变动类型
 
-    @Column({
-        type: 'enum',
-        enum: ['signin', 'team', 'reward', 'makeup']
+    @Column('varchar', { 
+        length: 20
     })
     source: 'signin' | 'team' | 'reward' | 'makeup'; // 积分来源/去向
 
-    @Column()
+    @Column({ type: 'varchar' })
     relatedId: string; // 关联的业务记录ID
 
-    @Column()
+    @Column({ type: 'varchar' })
     description: string; // 流水描述，如"周一签到"、"补签消耗"
 
-    @Column()
+    @Column({ type: 'int' })
     balanceBefore: number; // 变动前积分余额
 
-    @Column()
+    @Column({ type: 'int' })
     balanceAfter: number; // 变动后积分余额
 
-    @CreateDateColumn()
+    @CreateDateColumn({ type: 'datetime' })
     createdAt: Date; // 流水创建时间
 }

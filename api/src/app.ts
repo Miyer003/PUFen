@@ -2,6 +2,7 @@ import fastify from 'fastify';
 import { AppDataSource } from './config/db';
 import { authMiddleware } from './middleware/auth';
 import { authRoutes } from './controllers/auth.controller';
+import { pointsRoutes } from './controllers/points.controller';
 
 const app = fastify({ logger: true });
 
@@ -12,6 +13,7 @@ app.get('/health', async (_, reply) => {
 app.register(async function apiPlugin(f) {
     f.register(authMiddleware);
     f.register(authRoutes);
+    f.register(pointsRoutes);
 }, { prefix: '/api' });
 
 

@@ -11,22 +11,21 @@ export class Team {
     @Column({ length: 50, type: 'varchar' })
     name: string; // 团队名称，最大长度50字符
 
-    @Column()
+    @Column({ type: 'datetime' })
     startTime: Date; // 团队创建/开始时间
 
-    @Column()
+    @Column({ type: 'datetime' })
     endTime: Date; // 团队结束时间（开始时间+3小时）
 
-    @Column({ default: 100, type: 'int' })
+    @Column({ type: 'int', default: 100 })
     totalPoints: number; // 团队总积分池，固定100分
 
-    @Column({ 
-        type: 'enum',
-        enum: ['active', 'completed', 'expired'],
+    @Column('varchar', { 
+        length: 20,
         default: 'active'
     })
     status: 'active' | 'completed' | 'expired'; // 团队状态
 
-    @CreateDateColumn()
+    @CreateDateColumn({ type: 'datetime' })
     createdAt: Date; // 团队创建时间
 }

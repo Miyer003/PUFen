@@ -17,9 +17,9 @@ export class PointsAccount {
   @Column({ type: 'int', default: 0 })
   totalUsed: number; // 累计使用积分总额
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'datetime' })
   createdAt: Date; // 账户创建时间
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'datetime' })
   updatedAt: Date; // 账户最后更新时间
 }

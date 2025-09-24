@@ -5,30 +5,30 @@ export class RewardItem {
     @PrimaryGeneratedColumn('uuid')
     id: string; // 商品ID，主键
 
-    @Column({ length: 100 })
+    @Column({ type: 'varchar', length: 100 })
     name: string; // 商品名称，如"满29减4优惠券"
 
     @Column({ type: 'text' })
     description: string; // 商品详细描述
 
-    @Column()
+    @Column({ type: 'int' })
     pointsCost: number; // 兑换所需积分（5/10/15/20/25/30）
 
-    @Column()
+    @Column({ type: 'varchar' })
     couponType: string; // 优惠券类型，如"满29减4"
 
-    @Column()
+    @Column({ type: 'int' })
     couponValue: number; // 优惠券实际优惠金额
 
-    @Column()
+    @Column({ type: 'int' })
     conditionAmount: number; // 满减条件金额（如29元）
 
-    @Column()
+    @Column({ type: 'int' })
     stock: number; // 库存数量
 
-    @Column()
+    @Column({ type: 'int' })
     stage: number; // 所属阶段（1/2）
 
-    @CreateDateColumn()
+    @CreateDateColumn({ type: 'datetime' })
     createdAt: Date; // 商品创建时间
 }

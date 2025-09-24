@@ -17,10 +17,10 @@ export class User {
   @Column({ type: 'boolean', default: true })
   isNewUser: boolean; // 新用户标识
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'datetime' })
   createdAt: Date; // 创建时间
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'datetime' })
   updatedAt: Date; // 更新时间
 }
 
