@@ -4,8 +4,6 @@ import { AppDataSource } from '../config/db';
 import { User } from '../entities/User';
 
 export async function authHook(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-  const publicRoutes = ['/auth/login', '/auth/register', '/auth/profile'];
-  if (publicRoutes.includes(request.url)) return;
 
   const authHeader = request.headers.authorization;
   if (!authHeader) return reply.status(401).send({ success: false, message: '未提供token' });
