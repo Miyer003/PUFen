@@ -28,4 +28,7 @@ export class Team {
 
     @CreateDateColumn({ type: 'datetime' })
     createdAt: Date; // 团队创建时间
+
+    @Column({ type: 'int', nullable: true }) 
+    memberCount?: number; // 返回用
 }

@@ -22,7 +22,7 @@ export class PointsTransaction {
     @Column('varchar', { 
         length: 20
     })
-    source: 'signin' | 'team' | 'reward' | 'makeup'; // 积分来源/去向
+    source: 'signin' | 'team' | 'reward' | 'makeup' | 'order'; // 积分来源/去向
 
     @Column({ type: 'varchar' })
     relatedId: string; // 关联的业务记录ID
