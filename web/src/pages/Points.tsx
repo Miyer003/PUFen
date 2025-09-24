@@ -4,6 +4,7 @@ import { message } from 'antd';
 import {
   UnorderedListOutlined,
   QuestionCircleOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import styled from 'styled-components';
 import { useAuthStore } from '@/store/auth';
@@ -24,12 +25,36 @@ const Header = styled.div`
   color: white;
   position: relative;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const UserButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 16px;
+  border-radius: 50%;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+`;
+
+const HeaderCenter = styled.div`
+  flex: 1;
+  display: flex;
+  justify-content: center;
 `;
 
 const ActionButtons = styled.div`
-  position: absolute;
-  right: 20px;
-  top: 50px;
   display: flex;
   gap: 8px;
 `;
@@ -509,25 +534,31 @@ const Points: React.FC = () => {
       <PullToRefresh onRefresh={loadData}>
         <Container>
           <Header>
-            <Title 
-              onTouchStart={() => {
-                let pressTimer = setTimeout(() => {
-                  vibrate(100);
-                  handleTitleLongPress();
-                }, 800);
-                
-                const clearTimer = () => {
-                  clearTimeout(pressTimer);
-                  document.removeEventListener('touchend', clearTimer);
-                  document.removeEventListener('touchmove', clearTimer);
-                };
-                
-                document.addEventListener('touchend', clearTimer);
-                document.addEventListener('touchmove', clearTimer);
-              }}
-            >
-              我的积分
-            </Title>
+            <UserButton onClick={() => navigate('/profile')}>
+              <UserOutlined />
+            </UserButton>
+            
+            <HeaderCenter>
+              <Title 
+                onTouchStart={() => {
+                  let pressTimer = setTimeout(() => {
+                    vibrate(100);
+                    handleTitleLongPress();
+                  }, 800);
+                  
+                  const clearTimer = () => {
+                    clearTimeout(pressTimer);
+                    document.removeEventListener('touchend', clearTimer);
+                    document.removeEventListener('touchmove', clearTimer);
+                  };
+                  
+                  document.addEventListener('touchend', clearTimer);
+                  document.addEventListener('touchmove', clearTimer);
+                }}
+              >
+                我的积分
+              </Title>
+            </HeaderCenter>
             
             <ActionButtons>
               <ActionButton onClick={() => navigate('/records')}>
@@ -571,13 +602,6 @@ const Points: React.FC = () => {
             <div className="desc">H5特性展示</div>
           </RewardItem>
         </RewardGrid>
-
-        {/* 开发环境显示演示链接 */}
-        {(typeof import.meta !== 'undefined' && import.meta.env?.DEV) && (
-          <InviteSection onClick={() => navigate('/demo')} style={{ marginBottom: 20, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-            📱 移动端功能演示 (开发版)
-          </InviteSection>
-        )}
 
         <ExchangeSection>
           <div className="section-title">积分兑换区</div>

@@ -9,8 +9,11 @@ app.get('/health', async (_, reply) => {
     reply.send({ status: 'ok', time: new Date() });
 });
 
-app.register(authMiddleware);
-app.register(authRoutes);
+app.register(async function apiPlugin(f) {
+    f.register(authMiddleware);
+    f.register(authRoutes);
+}, { prefix: '/api' });
+
 
 const start = async () => {
     try {

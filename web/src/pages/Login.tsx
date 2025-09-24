@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Form, Input, Button, message } from 'antd';
 import { LockOutlined, PhoneOutlined } from '@ant-design/icons';
 import styled from 'styled-components';
@@ -93,40 +93,25 @@ const Footer = styled.div`
 
 const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-  const { login, setUser, setIsAuthenticated } = useAuthStore();
-
-  // 开发模式快速登录
-  const handleDevLogin = () => {
-    const mockUser = {
-      id: 'dev-user-001',
-      username: '开发测试用户',
-      phone: '13800138000',
-      isNewUser: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    
-    setUser(mockUser);
-    setIsAuthenticated(true);
-    
-    message.success('开发模式登录成功！');
-    navigate('/');
-  };
+  const { login } = useAuthStore();
 
   const onFinish = async (values: LoginRequest) => {
     try {
       setLoading(true);
       const response = await authService.login(values);
       
-      if (response.success) {
+      if (response.success && response.data) {
+        // 先设置登录状态
         login(response.token, response.data);
         message.success('登录成功！');
-        navigate('/');
+        
+        // 直接重定向到主页
+        window.location.href = '/';
       } else {
         message.error(response.message || '登录失败');
       }
     } catch (error: any) {
+      console.error('登录错误:', error);
       message.error(error?.message || '登录失败，请检查网络连接');
     } finally {
       setLoading(false);
@@ -184,25 +169,6 @@ const Login: React.FC = () => {
               登录
             </Button>
           </Form.Item>
-          
-          {/* 开发模式快速登录 */}
-          {(typeof import.meta !== 'undefined' && import.meta.env?.DEV) && (
-            <Form.Item>
-              <Button
-                type="dashed"
-                block
-                size="large"
-                onClick={handleDevLogin}
-                style={{ 
-                  borderColor: '#4facfe', 
-                  color: '#4facfe',
-                  background: 'rgba(79, 172, 254, 0.1)'
-                }}
-              >
-                🔧 开发模式登录
-              </Button>
-            </Form.Item>
-          )}
         </StyledForm>
         
         <Footer>

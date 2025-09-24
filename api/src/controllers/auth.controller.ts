@@ -82,7 +82,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       const token = signToken({ userId: user.id });
 
       reply.send({
-        seccess: true,
+        success: true,
         message: '登录成功',
         data: {
           id: user.id,

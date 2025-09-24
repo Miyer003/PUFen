@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
@@ -13,11 +13,12 @@ import MobileDemo from '@/pages/MobileDemo';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 const App: React.FC = () => {
-  const { checkAuth, isAuthenticated, loading } = useAuthStore();
+  const { isAuthenticated, loading } = useAuthStore();
 
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+  // 不在App级别调用checkAuth，让每个需要认证的组件自己处理
+  // useEffect(() => {
+  //   checkAuth();
+  // }, [checkAuth]);
 
   if (loading) {
     return (
