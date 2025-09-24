@@ -399,7 +399,7 @@ const Points: React.FC = () => {
 
   useEffect(() => {
     loadData();
-    setPageTitle('积分小猪');
+    setPageTitle('PUFen');
   }, []);
 
   const loadData = async () => {
