@@ -4,7 +4,8 @@ import { User } from '../entities/User';
 import { PointsAccount } from '../entities/PointsAccount';
 import { hashPassword } from '../utils/password';
 import { signToken } from '../utils/jwt';
-import { registerBodyDto } from '../dto/auth.dto';
+import { loginBodyDto, registerBodyDto } from '../dto/auth.dto';
+import bcrypt from 'bcrypt';
 
 export const authRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
@@ -48,6 +49,46 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
           phone: user.phone,
           isNewUser: user.isNewUser,
           createdAt: user.createdAt,
+        },
+        token,
+      });
+    }
+  );
+
+  fastify.post(
+    '/auth/login',
+    {
+      schema: {
+        body: loginBodyDto,
+      }
+    },
+    async (req, reply) => {
+      const { phone, password } = req.body as {
+        phone: string,
+        password: string,
+      };
+
+      const userRepo = AppDataSource.getRepository(User);
+      const user = await userRepo.findOneBy({ phone });
+      if (!user) {
+        return reply.status(401).send({ success: false, message: '用户名或密码错误' });
+      }
+      
+      const isValid = await bcrypt.compare(password, user.password);
+      if (!isValid) {
+        return reply.status(401).send({ success: false, message: '用户名或密码错误' });
+      }
+
+      const token = signToken({ userId: user.id });
+
+      reply.send({
+        seccess: true,
+        message: '登录成功',
+        data: {
+          id: user.id,
+          username: user.username,
+          phone: user.phone,
+          isNewUser: user.isNewUser,
         },
         token,
       });
