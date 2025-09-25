@@ -10,38 +10,50 @@ import { rewardService } from '@/services/reward';
 
 const Container = styled.div`
   min-height: 100vh;
-  background: #f5f5f5;
+  background: linear-gradient(135deg, #4CAF50 0%, #8BC34A 100%);
 `;
 
 const Header = styled.div`
-  background: white;
   padding: 44px 20px 20px;
+  color: white;
   position: relative;
   text-align: center;
-  border-bottom: 1px solid #eee;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 `;
 
-const BackButton = styled.div`
-  position: absolute;
-  left: 20px;
-  top: 50px;
-  width: 32px;
-  height: 32px;
+const BackButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
   cursor: pointer;
-  color: #333;
+  font-size: 16px;
+  border-radius: 50%;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
 `;
 
 const Title = styled.h1`
   font-size: 18px;
   font-weight: 600;
   margin: 0;
-  color: #333;
+  color: white;
+  flex: 1;
 `;
 
 const Content = styled.div`
+  background: white;
+  border-radius: 16px 16px 0 0;
+  margin-top: 20px;
+  min-height: calc(100vh - 120px);
   padding: 0;
 `;
 
@@ -325,6 +337,7 @@ const Records: React.FC = () => {
           <LeftOutlined />
         </BackButton>
         <Title>记录</Title>
+        <div style={{ width: '36px' }}></div>
       </Header>
 
       <Content>
