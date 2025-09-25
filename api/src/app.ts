@@ -1,8 +1,7 @@
 import fastify from 'fastify';
-import { AppDataSource } from './config/db';
 import { authRoutes } from './controllers/auth.controller';
 import { pointsRoutes } from './controllers/points.controller';
-
+import { signinRoutes } from './controllers/signin.controller';
 const app = fastify({ logger: true });
 
 app.get('/health', async (_, reply) => {
@@ -12,17 +11,7 @@ app.get('/health', async (_, reply) => {
 app.register(async function apiPlugin(f) {
     await f.register(authRoutes);
     await f.register(pointsRoutes);
+    await f.register(signinRoutes);
 }, { prefix: '/api' });
 
-const start = async () => {
-    try {
-        await AppDataSource.initialize();
-        console.log('数据库连接成功');
-    } catch (err) {
-        console.log('数据库连接失败', err);
-        process.exit(1);
-    }
-};
-
-start();
 export default app;

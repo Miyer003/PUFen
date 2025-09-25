@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { User } from '../entities/User.js';
+import { User } from '../entities/User';
 import { PointsAccount } from '../entities/PointsAccount';
 import { SignInConfig } from '../entities/SignInConfig';
 import { SignInRecord } from '../entities/SignInRecord';
