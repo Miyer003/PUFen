@@ -5,7 +5,6 @@ import { SignInRecord } from "../entities/SignInRecord";
 import { PointsAccount } from '../entities/PointsAccount';
 import { PointsTransaction } from '../entities/PointsTransaction';
 import { authHook } from "../middleware/auth.hook";
-import { pointsRoutes } from "./points.controller";
 
 export const signinRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.get(
@@ -216,4 +215,114 @@ export const signinRoutes: FastifyPluginAsync = async (fastify) => {
 
         }
     );
-}
+
+    fastify.post(
+        '/signin/makeup', 
+        { 
+            preHandler: authHook
+        },
+        async (req, reply) => {
+            const userId = req.user!.id;
+            const { date, method } = req.body as { date: string; method: 'points' | 'order' };
+
+            // 只能补过去7天
+            const target = new Date(date);
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            const sevenDaysAgo = new Date(now);
+            sevenDaysAgo.setDate(now.getDate() - 7);
+            if (target < sevenDaysAgo || target >= now) {
+                return reply.status(400).send({ 
+                    success: false,
+                    message: '只能补签过去7天内'
+                });
+            }
+
+            // 已签
+            const exist = await AppDataSource.getRepository(SignInRecord).findOneBy({
+                userId,
+                signInDate: target,
+            });
+            if (exist) return reply.status(400).send({
+                success: false,
+                message: '该日期已签到'
+            });
+
+            // 取配置
+            const cfg = await AppDataSource.getRepository(SignInConfig).findOne({
+                where: {},
+                order: { createdAt: 'DESC' },
+            });
+            if (!cfg) return reply.status(404).send({
+                success: false,
+                message: '暂无配置'
+            });
+
+            // points方式扣积分
+            let pointsCost = 0;
+            if (method === 'points') {
+                pointsCost = 5;
+                const accountRepo = AppDataSource.getRepository(PointsAccount);
+                const account = await accountRepo.findOneBy({ userId });
+                if (!account) throw new Error('积分账户不存在');
+                if (account.balance < pointsCost) {
+                return reply.status(400).send({ success: false, message: '积分不足' });
+                }
+
+                const balanceBefore = account.balance;
+                account.balance -= pointsCost;
+                account.totalUsed += pointsCost;
+                await accountRepo.save(account);
+
+                // 支出流水
+                await AppDataSource.getRepository(PointsTransaction).save(
+                    AppDataSource.getRepository(PointsTransaction).create({
+                        userId,
+                        accountId: account.id,
+                        amount: -pointsCost,
+                        type: 'use',
+                        source: 'makeup',
+                        relatedId: '', // 先空，后面补记录 ID
+                        description: '补签消耗 5 积分',
+                        balanceBefore,
+                        balanceAfter: account.balance,
+                    })
+                );
+            }
+
+            // 算积分（同正常签到倍数）
+            const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+            const targetKey = dayKeys[target.getDay() - 1];
+            const multiplier = (cfg as any)[`day${target.getDay()}Multiplier`];
+            const pointsEarned = Math.floor(cfg.basePoints * multiplier);
+
+            // 写补签记录
+            const record = AppDataSource.getRepository(SignInRecord).create({
+                userId,
+                configId: cfg.id,
+                signInDate: target,
+                pointsEarned,
+                isMakeUp: true,
+                makeUpCost: method === 'points' ? pointsCost : (method === 'order' ? null : null),
+            });
+            await AppDataSource.getRepository(SignInRecord).save(record);
+
+            // 更新流水 relatedId（补填）
+            if (method === 'points') {
+                await AppDataSource.getRepository(PointsTransaction).update(
+                { userId, source: 'makeup', relatedId: '' },
+                { relatedId: record.id }
+                );
+            }
+
+            // 返回结果
+            reply.send({
+                success: true,
+                data: {
+                pointsEarned,
+                pointsCost: method === 'points' ? pointsCost : null,
+                bonusCoupon: null, // 补签不发券
+                },
+            });
+        });
+    }
