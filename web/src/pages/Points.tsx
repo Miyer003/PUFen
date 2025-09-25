@@ -26,8 +26,16 @@ const Header = styled.div`
   position: relative;
   text-align: center;
   display: flex;
+  flex-direction: column;
+  align-items: center;
+`;
+
+const HeaderTop = styled.div`
+  display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
+  margin-bottom: 16px;
 `;
 
 const UserButton = styled.button`
@@ -48,31 +56,28 @@ const UserButton = styled.button`
   }
 `;
 
-const HeaderCenter = styled.div`
-  flex: 1;
-  display: flex;
-  justify-content: center;
-`;
-
 const ActionButtons = styled.div`
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
 `;
 
 const ActionButton = styled.button`
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   background: rgba(255, 255, 255, 0.2);
   border: none;
   color: white;
   cursor: pointer;
-  font-size: 12px;
-  padding: 6px 12px;
-  border-radius: 16px;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  min-width: 44px;
   
   .label {
-    margin-left: 4px;
+    margin-left: 2px;
   }
   
   &:hover {
@@ -170,7 +175,7 @@ const SignInCalendar = styled.div`
   margin-bottom: 20px;
 `;
 
-const DayItem = styled.div<{ isSignedIn?: boolean; isToday?: boolean; hasBonus?: boolean }>`
+const DayItem = styled.div<{ isSignedIn?: boolean; isToday?: boolean; hasBonus?: boolean; canMakeUp?: boolean; isFuture?: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -187,40 +192,91 @@ const DayItem = styled.div<{ isSignedIn?: boolean; isToday?: boolean; hasBonus?:
     height: 44px;
     border-radius: 50%;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     font-size: 12px;
     font-weight: 600;
     position: relative;
-    cursor: pointer;
+    cursor: ${props => (props.isFuture || (props.isToday && props.isSignedIn)) ? 'default' : 'pointer'};
+    transition: all 0.2s ease;
+    
+    .check-icon {
+      font-size: 18px;
+      line-height: 1;
+    }
+    
+    .points-text {
+      font-size: 9px;
+      line-height: 1;
+      margin-top: 2px;
+      opacity: 0.8;
+    }
     
     ${props => {
       if (props.isSignedIn) {
         return `
           background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
           color: white;
+          box-shadow: 0 2px 8px rgba(79, 172, 254, 0.3);
+          border: 2px solid #fff;
         `;
-      } else if (props.isToday) {
+      } else if (props.canMakeUp) {
         return `
-          background: #ff6b6b;
+          background: linear-gradient(135deg, #ff9500 0%, #ff7b00 100%);
           color: white;
+          box-shadow: 0 2px 8px rgba(255, 149, 0, 0.3);
+          border: 2px solid #fff;
+          &:hover {
+            transform: scale(1.05);
+          }
+        `;
+      } else if (props.isToday && !props.isSignedIn) {
+        return `
+          background: linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%);
+          color: white;
+          box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+          border: 2px solid #fff;
+          animation: pulse 2s infinite;
+          &:hover {
+            transform: scale(1.05);
+          }
+          
+          @keyframes pulse {
+            0% {
+              box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.4);
+            }
+            70% {
+              box-shadow: 0 0 0 8px rgba(255, 107, 107, 0);
+            }
+            100% {
+              box-shadow: 0 0 0 0 rgba(255, 107, 107, 0);
+            }
+          }
+        `;
+      } else if (props.isFuture) {
+        return `
+          background: #f5f5f5;
+          color: #ccc;
+          border: 2px dashed #ddd;
+          cursor: not-allowed;
         `;
       } else {
         return `
           background: #f0f0f0;
           color: #999;
+          border: 2px dashed #ddd;
         `;
       }
     }}
     
     ${props => props.hasBonus && `
       &::after {
-        content: '券';
+        content: '🎁';
         position: absolute;
-        top: -4px;
-        right: -4px;
+        top: -6px;
+        right: -6px;
         background: #ff4757;
-        color: white;
         font-size: 8px;
         width: 16px;
         height: 16px;
@@ -228,8 +284,22 @@ const DayItem = styled.div<{ isSignedIn?: boolean; isToday?: boolean; hasBonus?:
         display: flex;
         align-items: center;
         justify-content: center;
+        border: 2px solid white;
       }
     `}
+  }
+  
+  .makeup-text {
+    font-size: 10px;
+    color: #ff9500;
+    margin-top: 4px;
+    font-weight: 500;
+  }
+  
+  .future-text {
+    font-size: 10px;
+    color: #ccc;
+    margin-top: 4px;
   }
 `;
 
@@ -493,21 +563,45 @@ const Points: React.FC = () => {
   };
 
   const renderDayItem = (dayIndex: number) => {
-    const dayLabels = ['第1天', '今天', '第3天', '第4天', '第5天', '第6天', '第7天'];
-    const today = new Date().getDay();
-    const adjustedToday = today === 0 ? 6 : today - 1; // 调整为周一为0
+    const dayLabels = ['第1天', '第2天', '第3天', '第4天', '第5天', '第6天', '第7天'];
     
-    const isToday = dayIndex === adjustedToday;
-    const isSignedIn = signInStatus?.weeklyRecords?.some(record => {
-      const recordDate = new Date(record.signInDate);
-      const targetDate = new Date();
-      targetDate.setDate(targetDate.getDate() - (adjustedToday - dayIndex));
-      return recordDate.toDateString() === targetDate.toDateString();
-    });
+    if (!signInStatus?.weekStatus) {
+      return null;
+    }
     
-    const multiplier = weeklyConfig ? Object.values(weeklyConfig)[dayIndex + 4] : 1; // day1Multiplier starts at index 4
-    const points = Math.round((weeklyConfig?.basePoints || 10) * (multiplier as number));
-    const hasBonus = weeklyConfig?.bonusDay === dayIndex + 1;
+    const dayStatus = signInStatus.weekStatus[dayIndex];
+    if (!dayStatus) return null;
+    
+    const isToday = dayStatus.isToday;
+    const isSignedIn = dayStatus.signed;
+    const canMakeUp = dayStatus.canMakeUp;
+    const points = dayStatus.points;
+    
+    // 判断是否是未来日期
+    const today = new Date();
+    const dayDate = new Date(dayStatus.date);
+    const isFuture = dayDate > today;
+    
+    // 从配置中获取当天的积分倍数
+    const multiplierKey = `day${dayIndex + 1}Multiplier` as keyof typeof weeklyConfig;
+    const multiplier = (weeklyConfig?.[multiplierKey] as unknown as number) || 1;
+    const expectedPoints = Math.round((weeklyConfig?.basePoints || 10) * multiplier);
+    
+    const hasBonus = weeklyConfig?.bonusDay === (dayIndex + 1);
+
+    const handleClick = () => {
+      if (isFuture) {
+        message.info('未来日期无法签到');
+        return;
+      }
+      if (isToday && !isSignedIn) {
+        handleSignIn();
+      } else if (canMakeUp) {
+        handleSignIn(dayIndex);
+      } else if (isToday && isSignedIn) {
+        message.info('今日已签到');
+      }
+    };
 
     return (
       <DayItem
@@ -515,14 +609,48 @@ const Points: React.FC = () => {
         isToday={isToday}
         isSignedIn={isSignedIn}
         hasBonus={hasBonus}
-        onClick={() => !isSignedIn && handleSignIn(dayIndex)}
+        canMakeUp={canMakeUp}
+        isFuture={isFuture}
+        onClick={handleClick}
       >
         <div className="day-label">{dayLabels[dayIndex]}</div>
         <div className="points-badge">
-          {isSignedIn ? '✓' : `+${points}`}
+          {isSignedIn ? (
+            <>
+              <div className="check-icon">✓</div>
+              <div className="points-text">+{points}</div>
+            </>
+          ) : isFuture ? (
+            <div style={{fontSize: '11px', color: '#ccc'}}>+{expectedPoints}</div>
+          ) : (
+            <div style={{fontSize: '11px', fontWeight: 'bold'}}>+{expectedPoints}</div>
+          )}
         </div>
+        {canMakeUp && <div className="makeup-text">补签</div>}
+        {isFuture && <div className="future-text">未来</div>}
       </DayItem>
     );
+  };
+
+  // 计算礼包提示信息
+  const getBonusReminder = () => {
+    if (!weeklyConfig || !signInStatus) {
+      return '签到可获取积分奖励';
+    }
+    
+    const bonusDay = weeklyConfig.bonusDay;
+    const continuousDays = signInStatus.continuousDays;
+    const todaySignedIn = signInStatus.todaySignedIn;
+    
+    // 如果今天还没签到，连续天数需要加1来计算
+    const currentStreak = todaySignedIn ? continuousDays : continuousDays + 1;
+    
+    if (currentStreak >= bonusDay) {
+      return `已获得${weeklyConfig.bonusCoupon}奖励！`;
+    }
+    
+    const daysLeft = bonusDay - currentStreak;
+    return `再签${daysLeft}天可获${weeklyConfig.bonusCoupon}`;
   };
 
   const handleTitleLongPress = () => {
@@ -534,11 +662,11 @@ const Points: React.FC = () => {
       <PullToRefresh onRefresh={loadData}>
         <Container>
           <Header>
-            <UserButton onClick={() => navigate('/profile')}>
-              <UserOutlined />
-            </UserButton>
-            
-            <HeaderCenter>
+            <HeaderTop>
+              <UserButton onClick={() => navigate('/profile')}>
+                <UserOutlined />
+              </UserButton>
+              
               <Title 
                 onTouchStart={() => {
                   let pressTimer = setTimeout(() => {
@@ -558,19 +686,19 @@ const Points: React.FC = () => {
               >
                 我的积分
               </Title>
-            </HeaderCenter>
-            
-            <ActionButtons>
-              <ActionButton onClick={() => navigate('/records')}>
-                <UnorderedListOutlined />
-                <span className="label">记录</span>
-              </ActionButton>
               
-              <ActionButton onClick={() => navigate('/rules')}>
-                <span>📖</span>
-                <span className="label">规则</span>
-              </ActionButton>
-            </ActionButtons>
+              <ActionButtons>
+                <ActionButton onClick={() => navigate('/records')}>
+                  <UnorderedListOutlined />
+                  <span className="label">记录</span>
+                </ActionButton>
+                
+                <ActionButton onClick={() => navigate('/rules')}>
+                  <QuestionCircleOutlined />
+                  <span className="label">规则</span>
+                </ActionButton>
+              </ActionButtons>
+            </HeaderTop>
           </Header>
 
           <PointsSection>
@@ -578,7 +706,7 @@ const Points: React.FC = () => {
               <PointsAmount>{pointsAccount?.balance || 0}</PointsAmount>
             </PointsPig>
             
-            <RemainderText>再签1天可获惊喜礼包</RemainderText>
+            <RemainderText>{getBonusReminder()}</RemainderText>
             
             <SignInReminder>
               <QuestionCircleOutlined />

@@ -9,7 +9,7 @@ import { authHook } from '../middleware/auth.hook';
 import bcrypt from 'bcrypt';
 
 export const authRoutes: FastifyPluginAsync = async (fastify) => {
-  fastify.addHook('preHandler', authHook);
+  // fastify.addHook('preHandler', authHook);
   fastify.post(
     '/auth/register',
     {
@@ -99,9 +99,11 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get(
     '/auth/profile',
+    {
+      preHandler: authHook
+    },
     async (req, reply) => {
       const user = req.user!;
-
       reply.send({
         success: true,
         id: user.id,

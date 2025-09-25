@@ -3,7 +3,6 @@ import {
   PointsAccount,
   SignInResponse,
   SignInConfig,
-  SignInRecord,
   MakeUpRequest,
   ApiResponse,
   PaginatedResponse,
@@ -24,7 +23,13 @@ export const pointsService = {
   async getSignInStatus(): Promise<ApiResponse<{
     todaySignedIn: boolean;
     continuousDays: number;
-    weeklyRecords: SignInRecord[];
+    weekStatus: Array<{
+      date: string;
+      signed: boolean;
+      points: number;
+      isToday: boolean;
+      canMakeUp?: boolean;
+    }>;
   }>> {
     return apiClient.get('/signin/status');
   },

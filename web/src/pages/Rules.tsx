@@ -11,30 +11,39 @@ const Container = styled.div`
 `;
 
 const Header = styled.div`
+  padding: 44px 20px 20px;
+  color: white;
+  position: relative;
+  text-align: center;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
-  color: white;
 `;
 
 const BackButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
+  width: 36px;
+  height: 36px;
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
+  border: none;
   color: white;
   cursor: pointer;
+  font-size: 16px;
+  border-radius: 50%;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
 `;
 
 const Title = styled.h1`
   font-size: 18px;
   font-weight: 600;
   margin: 0;
+  color: white;
+  flex: 1;
 `;
 
 const ContentCard = styled.div`
@@ -167,7 +176,7 @@ const Rules: React.FC = () => {
           
           <Title>积分规则</Title>
           
-          <div style={{ width: 32 }} />
+          <div style={{ width: '36px' }} />
         </Header>
 
         <ContentCard>

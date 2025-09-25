@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { SignInConfig, SignInRecord, PointsAccount } from '@/types';
+import { SignInConfig, PointsAccount } from '@/types';
 
 interface PointsState {
   pointsAccount: PointsAccount | null;
@@ -7,7 +7,13 @@ interface PointsState {
   signInStatus: {
     todaySignedIn: boolean;
     continuousDays: number;
-    weeklyRecords: SignInRecord[];
+    weekStatus: Array<{
+      date: string;
+      signed: boolean;
+      points: number;
+      isToday: boolean;
+      canMakeUp?: boolean;
+    }>;
   } | null;
   loading: boolean;
   
@@ -17,7 +23,13 @@ interface PointsState {
   setSignInStatus: (status: {
     todaySignedIn: boolean;
     continuousDays: number;
-    weeklyRecords: SignInRecord[];
+    weekStatus: Array<{
+      date: string;
+      signed: boolean;
+      points: number;
+      isToday: boolean;
+      canMakeUp?: boolean;
+    }>;
   }) => void;
   setLoading: (loading: boolean) => void;
   updateBalance: (amount: number) => void;
