@@ -6,7 +6,7 @@ export async function buildWeekConfig(): Promise<SignInConfig> {
 
     // 周一00:00
     const monday = new Date();
-    monday.setHours(8, 0, 0, 0);
+    monday.setHours(0, 0, 0, 0);
     const day = monday.getDay();
     const diff = monday.getDate() - day + ( day === 0 ? -6 : 1);
     monday.setDate(diff);
