@@ -7,7 +7,10 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "coupon:add": "tsx src/scripts/coupon-cli.ts add",
+    "coupon:list": "tsx src/scripts/coupon-cli.ts list",
+    "coupon:clear": "tsx src/scripts/coupon-cli.ts clear"
   },
   "keywords": [],
   "author": "",
