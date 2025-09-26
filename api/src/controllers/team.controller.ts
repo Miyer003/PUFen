@@ -245,8 +245,9 @@ export const teamRoutes: FastifyPluginAsync = async (fastify) => {
                 .take(limit)
                 .getManyAndCount();
 
-            // 团队 + 成员数 + 队长昵称
+            // 补充字段
             const raw = await teamRepo.createQueryBuilder('team')
+                // 子查询
                 .leftJoin(q => q
                     .select('teamId', 'tid')
                     .addSelect('COUNT(*)', 'cnt')
@@ -272,7 +273,6 @@ export const teamRoutes: FastifyPluginAsync = async (fastify) => {
                 ])
                 .getRawMany();
 
-            // 统一补一个剩余秒数字段即可
             const teamsWithInfo = raw.map(e => ({
                 ...e,
                 memberCount: Number(e.memberCount),
