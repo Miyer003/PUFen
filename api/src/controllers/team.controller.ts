@@ -4,6 +4,7 @@ import { AppDataSource } from "../config/db";
 import { Team } from "../entities/Team";
 import { TeamMember } from "../entities/TeamMember";
 import { stat } from "fs";
+import { REPLServer } from "repl";
 
 export const teamRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.addHook('preHandler', authHook);
@@ -119,6 +120,7 @@ export const teamRoutes: FastifyPluginAsync = async (fastify) => {
                 if (captain) {
                     captain.pointsEarned += 50;
                 }
+                await memberRepo.save(captain);
             }
 
             // 存入数据库
@@ -184,6 +186,35 @@ export const teamRoutes: FastifyPluginAsync = async (fastify) => {
             });
         }
     );
-    // fastify.get();
+    fastify.get(
+        '/teams/:teamId',
+        async (req, reply) => {
+            const { teamId } = req.params as { teamId: string };
+            const teamRepo = AppDataSource.getRepository(Team);
+            const memberRepo = AppDataSource.getRepository(TeamMember);
+
+            const team = await teamRepo.findOneBy({ id: teamId });
+            if (!team) {
+                return reply.status(404).send({
+                    success: false,
+                    message: '团队未找到'
+                });
+            }
+
+            const members = await memberRepo.findBy({ teamId });
+
+            reply.send({
+                success: true,
+                data: {
+                    team: {
+                        ...team,
+                        memberCount: members.length,
+                        remainingTime:  Math.max(0, Math.floor((new Date(team.endTime).getTime() - Date.now()) / 1000))
+                    },
+                    members
+                }
+            });
+        }
+    );
     // fastify.get();
 }
