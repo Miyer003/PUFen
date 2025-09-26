@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Team } from './Team';
 
 @Entity()
 export class TeamMember {
@@ -10,6 +11,10 @@ export class TeamMember {
 
     @Column({ type: 'varchar' })
     userId: string; // 关联的用户ID
+
+    @ManyToOne(() => Team)
+    @JoinColumn({ name: 'teamId' })
+    team!: Team
 
     @Column('varchar', { 
         length: 20

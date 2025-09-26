@@ -27,7 +27,7 @@ export class RewardRecord {
         length: 20,
         default: 'pending'
     })
-    status: 'pending' | 'completed' | 'cancelled'; // 兑换状态
+    status: 'active' | 'used' | 'expired'; // 兑换状态
 
     @CreateDateColumn({ type: 'datetime' })
     createdAt: Date; // 记录创建时间

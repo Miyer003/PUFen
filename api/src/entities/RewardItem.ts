@@ -28,6 +28,12 @@ export class RewardItem {
 
     @Column({ type: 'int' })
     stage: number; // 所属阶段（1/2）
+    
+    @Column({ type: 'int' })
+    validityDays: number; // 有效期
+
+    @Column({ type: 'boolean' })
+    isLimited: boolean;
 
     @CreateDateColumn({ type: 'datetime' })
     createdAt: Date; // 商品创建时间
