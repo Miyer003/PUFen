@@ -5,6 +5,7 @@ import { Team } from "../entities/Team";
 import { TeamMember } from "../entities/TeamMember";
 import { stat } from "fs";
 import { REPLServer } from "repl";
+import { User } from "../entities/User";
 
 export const teamRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.addHook('preHandler', authHook);
@@ -36,7 +37,7 @@ export const teamRoutes: FastifyPluginAsync = async (fastify) => {
                 totalPoints: 100,
                 status: 'active',
                 createdAt: new Date(),
-                // memberCount: 3
+                memberCount: 1
             });
             await teamRepo.save(team);
 
@@ -216,5 +217,80 @@ export const teamRoutes: FastifyPluginAsync = async (fastify) => {
             });
         }
     );
-    // fastify.get();
+    fastify.get(
+        '/teams/available',
+        async (req, reply) => {
+            const userId = req.user!.id;
+            const { page = 1, limit = 5 } = req.query as {
+                page: number,
+                limit: number
+            }
+            const teamRepo = AppDataSource.getRepository(Team);
+            const memberRepo = AppDataSource.getRepository(TeamMember);
+
+            const joinedTeamId = await memberRepo.createQueryBuilder('m')
+                .select('m.teamId')
+                .where('m.userId = :userId', { userId })
+                .getMany()
+            const joinedIds = joinedTeamId.map(j => j.teamId);
+
+            const query = teamRepo.createQueryBuilder('t')
+                .where('t.status = :status', { status: 'active'})
+                .andWhere('t.captainId != :userId', { userId })
+                .andWhere('t.id NOT IN (:...joinedIds)', { joinedIds: joinedIds.length ? joinedIds : ['']  })
+                .orderBy('t.createdAt', 'DESC')
+
+            const [teams, total] = await query
+                .skip((page - 1) * limit)
+                .take(limit)
+                .getManyAndCount();
+
+            // 团队 + 成员数 + 队长昵称
+            const raw = await teamRepo.createQueryBuilder('team')
+                .leftJoin(q => q
+                    .select('teamId', 'tid')
+                    .addSelect('COUNT(*)', 'cnt')
+                    .from(TeamMember, 'm')
+                    .groupBy('teamId'), 'mc', 'mc.tid = team.id')
+                .leftJoin(User, 'cap', 'cap.id = team.captainId')
+                .where('team.status = :status', { status: 'active' })
+                .andWhere('team.captainId != :uid', { uid: userId })
+                .andWhere(joinedIds.length ? 'team.id NOT IN (:...joinedIds)' : '1=1', { joinedIds })
+                .orderBy('team.createdAt', 'DESC')
+                .skip((page - 1) * limit)
+                .take(limit)
+                .select([
+                    'team.id AS id',
+                    'team.captainId AS captainId',
+                    'team.name AS name',
+                    'team.startTime AS startTime',
+                    'team.endTime AS endTime',
+                    'team.totalPoints AS totalPoints',
+                    'team.status AS status',
+                    'COALESCE(mc.cnt, 0) AS memberCount',
+                    'cap.username AS captainName'
+                ])
+                .getRawMany();
+
+            // 统一补一个剩余秒数字段即可
+            const teamsWithInfo = raw.map(e => ({
+                ...e,
+                memberCount: Number(e.memberCount),
+                remainingTime: Math.max(0, Math.floor((new Date(e.endTime).getTime() - Date.now()) / 1000))
+            }));
+            
+            reply.send({
+                success: true,
+                data: {
+                    teams: teamsWithInfo,
+                    pagination: {
+                        page: Number(page),
+                        limit: Number(limit),
+                        total,
+                        totalPages: Math.ceil(total / limit)
+                    }
+                }
+            });
+        }
+    );
 }
