@@ -16,12 +16,22 @@ export const rewardRoutes: FastifyPluginAsync = async (fastify) => {
             const userId = req.user!.id;
             const { stage, isLimited, page = 1, limit = 20 } = req.query as {
                 stage?: 1 | 2,
-                isLimited?: boolean,
+                isLimited?: boolean | string,
                 page?: number,
                 limit?: number
             };
             const pageNum = Number(page);
             const limitNum = Number(limit);
+            
+            // SQLite Boolean 1/0 转换为 Boolean true/false
+            let isLimitedFilter: boolean | undefined = undefined;
+            if (isLimited !== undefined) {
+                if (typeof isLimited === 'string') {
+                    isLimitedFilter = isLimited === 'true';
+                } else {
+                    isLimitedFilter = Boolean(isLimited);
+                }
+            }
 
             // 解锁阶段
             const exchangedCount = await AppDataSource.getRepository(RewardRecord)
@@ -38,14 +48,21 @@ export const rewardRoutes: FastifyPluginAsync = async (fastify) => {
             }
 
             const repo = AppDataSource.getRepository(RewardItem);
-            const result = repo.createQueryBuilder('item')
+            
+            let queryBuilder = repo.createQueryBuilder('item')
                 .where('item.stage = :stage', { stage: stageFilter })
-                .andWhere('item.isLimited = :isLimited', { isLimited })
-                .orderBy('item.pointsCost', 'ASC')
+                .orderBy('item.pointsCost', 'ASC');
+                
+            // 如果指定了 isLimited 参数，则添加过滤条件
+            if (isLimitedFilter !== undefined) {
+                queryBuilder = queryBuilder.andWhere('item.isLimited = :isLimited', { isLimited: isLimitedFilter });
+            }
+            
+            queryBuilder = queryBuilder
                 .skip((pageNum - 1) * limitNum)
-                .take(limitNum)
+                .take(limitNum);
 
-            const [items, total] = await result.getManyAndCount()
+            const [items, total] = await queryBuilder.getManyAndCount();
 
             if (items.length === 0) {
                 return reply.send({
@@ -87,57 +104,65 @@ export const rewardRoutes: FastifyPluginAsync = async (fastify) => {
             preHandler: authHook
         },
         async (req, reply) => {
-            // config
             const userId = req.user!.id;
             const { rewardItemId } = req.body as { rewardItemId: string };
             
             // 商品是否存在
             const itemRepo = AppDataSource.getRepository(RewardItem);
-            const item = itemRepo.findOneBy({ id: rewardItemId });
-            if ( !item || (await item).stock <= 0) {
+            const item = await itemRepo.findOneBy({ id: rewardItemId });
+            if (!item || item.stock <= 0) {
                 return reply.status(404).send({
                     success: false,
                     message: '商品不存在或告罄'
                 });
             }
-            // 获取积分
+            
+            // 获取积分账户
             const accountRepo = AppDataSource.getRepository(PointsAccount);
-            const account = accountRepo.findOneBy({ userId });
-            if (!account) throw new Error('积分账户不存在');
-            if ((await account).balance < (await item).pointsCost) {
+            const account = await accountRepo.findOneBy({ userId });
+            if (!account) {
+                return reply.status(404).send({
+                    success: false,
+                    message: '积分账户不存在'
+                });
+            }
+            
+            if (account.balance < item.pointsCost) {
                 return reply.status(400).send({
                     success: false,
                     message: '积分不足'
                 });
             }
+            
             // 成功兑换 -> 扣积分，加流水
-            const balanceBefore = (await account).balance;
-            (await account).balance -= (await item).pointsCost;
-            (await account).totalUsed += (await item).pointsCost;
-            await accountRepo.save(await account);
+            const balanceBefore = account.balance;
+            account.balance -= item.pointsCost;
+            account.totalUsed += item.pointsCost;
+            await accountRepo.save(account);
 
             await AppDataSource.getRepository(PointsTransaction).save(
                 AppDataSource.getRepository(PointsTransaction).create({
                     userId,
-                    accountId: (await account).id,
-                    amount: -(await item).pointsCost,
+                    accountId: account.id,
+                    amount: -item.pointsCost,
                     type: 'use',
                     source: 'reward',
-                    relatedId: (await item).id,
-                    description: `${(await item).pointsCost} 积分兑换 ${(await item).name}`,
+                    relatedId: item.id,
+                    description: `${item.pointsCost} 积分兑换 ${item.name}`,
                     balanceBefore,
-                    balanceAfter: (await account).balance,
+                    balanceAfter: account.balance,
                 })
             );
 
             //扣库存
             const affected = await itemRepo.decrement({ id: rewardItemId }, 'stock', 1);
-            if (Number(affected) === 0) {
+            if (affected.affected === 0) {
                 return reply.status(409).send({
                     success: false,
                     message: '库存不足，请重试'
                 });
             }
+            
             // 优惠券couponCode生成
             const couponCode = 'CODE' + Math.random().toString(36).substr(2, 8).toUpperCase();
 
@@ -145,19 +170,19 @@ export const rewardRoutes: FastifyPluginAsync = async (fastify) => {
             const recordRepo = AppDataSource.getRepository(RewardRecord);
             const record = recordRepo.create({
                 userId,
-                rewardItemId: (await item).id,
-                pointsCost: (await item).pointsCost,
+                rewardItemId: item.id,
+                pointsCost: item.pointsCost,
                 couponCode,
-                status: 'completed',
-                });
+                status: 'active',
+            });
             await recordRepo.save(record);
 
             reply.send({
                 success: true,
                 data: {
                     couponCode,
-                    pointsCost: (await item).pointsCost,
-                    newBalance: (await account).balance,
+                    pointsCost: item.pointsCost,
+                    newBalance: account.balance,
                 },
             });
         });
