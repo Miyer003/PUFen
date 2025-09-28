@@ -91,6 +91,8 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
           username: user.username,
           phone: user.phone,
           isNewUser: user.isNewUser,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
         },
         token,
       });
@@ -106,11 +108,15 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       const user = req.user!;
       reply.send({
         success: true,
-        id: user.id,
-        username: user.username,
-        phone: user.phone,
-        isNewUser: user.isNewUser,
-        createdAt: user.createdAt,
+        message: '获取用户信息成功',
+        data: {
+          id: user.id,
+          username: user.username,
+          phone: user.phone,
+          isNewUser: user.isNewUser,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+        }
       });
     }
   );

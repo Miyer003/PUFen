@@ -138,7 +138,20 @@ export const signinRoutes: FastifyPluginAsync = async (fastify) => {
             // 计算积分
             const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
             const todayKey = dayKeys[today.getDay()-1];
-            const multiplier = (cfg as any)[`day${today.getDay()}Multiplier`];
+            
+            // 修复周日到周一的映射问题
+            const dayOfWeek = today.getDay(); // 0=周日, 1=周一, ..., 6=周六
+            const dayNumber = dayOfWeek === 0 ? 7 : dayOfWeek; // 转换为 1-7 (周一到周日)
+            const multiplier = (cfg as any)[`day${dayNumber}Multiplier`];
+            
+            // 确保 multiplier 是有效数值，避免 NaN
+            if (typeof multiplier !== 'number' || isNaN(multiplier)) {
+                return reply.status(500).send({
+                    success: false,
+                    message: '签到配置错误，请联系管理员'
+                });
+            }
+            
             const pointsEarned = Math.floor(cfg.basePoints * multiplier);
 
             // 连续签到奖励
@@ -159,7 +172,9 @@ export const signinRoutes: FastifyPluginAsync = async (fastify) => {
                 continuous++;
                 check.setDate(check.getDate() - 1);    
             }
-            if (todayKey && cfg.bonusDay === today.getDay()) {
+            
+            // 修复连续签到奖励判断
+            if (dayNumber === cfg.bonusDay) {
                 hasBonus = true;
                 bonusCoupon = cfg.bonusCoupon;
             }
@@ -293,7 +308,20 @@ export const signinRoutes: FastifyPluginAsync = async (fastify) => {
             // 算积分（同正常签到倍数）
             const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
             const targetKey = dayKeys[target.getDay() - 1];
-            const multiplier = (cfg as any)[`day${target.getDay()}Multiplier`];
+            
+            // 修复周日到周一的映射问题（补签）
+            const targetDayOfWeek = target.getDay(); // 0=周日, 1=周一, ..., 6=周六
+            const targetDayNumber = targetDayOfWeek === 0 ? 7 : targetDayOfWeek; // 转换为 1-7 (周一到周日)
+            const multiplier = (cfg as any)[`day${targetDayNumber}Multiplier`];
+            
+            // 确保 multiplier 是有效数值，避免 NaN
+            if (typeof multiplier !== 'number' || isNaN(multiplier)) {
+                return reply.status(500).send({
+                    success: false,
+                    message: '签到配置错误，请联系管理员'
+                });
+            }
+            
             const pointsEarned = Math.floor(cfg.basePoints * multiplier);
 
             // 写补签记录

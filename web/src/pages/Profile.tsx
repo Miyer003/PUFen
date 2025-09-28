@@ -142,6 +142,21 @@ const Profile: React.FC = () => {
     navigate('/login');
   };
 
+  // 格式化加入时间
+  const formatJoinDate = (dateStr: string | undefined) => {
+    if (!dateStr) return '未知';
+    
+    try {
+      const date = new Date(dateStr);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}年${month}月${day}日`;
+    } catch (error) {
+      return '未知';
+    }
+  };
+
   return (
     <SafeArea>
       <Container>
@@ -165,7 +180,7 @@ const Profile: React.FC = () => {
               手机号: {user?.phone || '未设置'}
             </UserMeta>
             <UserMeta>
-              加入于 {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : '未知'}
+              加入于 {formatJoinDate(user?.createdAt)}
             </UserMeta>
           </ProfileHeader>
 
