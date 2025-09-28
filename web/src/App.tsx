@@ -13,12 +13,12 @@ import MobileDemo from '@/pages/MobileDemo';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 const App: React.FC = () => {
-  const { isAuthenticated, loading } = useAuthStore();
+  const { isAuthenticated, loading, initialize } = useAuthStore();
 
-  // 不在App级别调用checkAuth，让每个需要认证的组件自己处理
-  // useEffect(() => {
-  //   checkAuth();
-  // }, [checkAuth]);
+  // 在应用启动时初始化认证状态
+  React.useEffect(() => {
+    initialize();
+  }, [initialize]);
 
   if (loading) {
     return (

@@ -19,16 +19,10 @@ interface AuthState {
   setUser: (user: User | null) => void;
   setIsAuthenticated: (authenticated: boolean) => void;
   checkAuth: () => Promise<void>;
+  initialize: () => void;
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      user: null,
-      pointsAccount: null,
-      token: null,
-      isAuthenticated: false,
-      loading: false,
+export const useAuthStore = create<AuthState>()(  persist(    (set) => ({      user: null,      pointsAccount: null,      token: null,      isAuthenticated: false,      loading: true, // 初始化时设置为true，避免闪烁
 
       login: (token: string, user: User) => {
         authService.setToken(token);
@@ -96,6 +90,15 @@ export const useAuthStore = create<AuthState>()(
           set({ loading: false });
         }
       },
+
+      initialize: () => {
+        const token = authService.getToken();
+        set({
+          isAuthenticated: !!token,
+          token,
+          loading: false
+        });
+      },
     }),
     {
       name: 'auth-storage',
@@ -104,6 +107,15 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         isAuthenticated: state.isAuthenticated,
       }),
+      onRehydrateStorage: () => (state) => {
+        // 恢复状态后立即检查token并设置认证状态
+        if (state) {
+          const token = authService.getToken();
+          state.isAuthenticated = !!token;
+          state.token = token;
+          state.loading = false;
+        }
+      },
     }
   )
 );
