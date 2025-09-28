@@ -86,4 +86,24 @@ export const teamService = {
   }): Promise<PaginatedResponse<Team & { memberCount: number; captainName: string }>> {
     return apiClient.get('/teams/available', { params });
   },
+
+  // 队长解散队伍
+  async dissolveTeam(): Promise<ApiResponse<{ message: string }>> {
+    return apiClient.delete('/teams');
+  },
+
+  // 队员退出队伍
+  async leaveTeam(): Promise<ApiResponse<{ message: string }>> {
+    return apiClient.delete('/teams/leave');
+  },
+
+  // 修正队伍状态（开发用）
+  async fixTeamStatus(): Promise<ApiResponse<{ message: string }>> {
+    return apiClient.post('/teams/fix-status');
+  },
+
+  // 修复TeamRecord积分显示（开发用）
+  async fixTeamRecords(): Promise<ApiResponse<{ message: string }>> {
+    return apiClient.post('/teams/fix-team-records');
+  },
 };

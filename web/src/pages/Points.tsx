@@ -556,11 +556,21 @@ const Points: React.FC = () => {
       setRewardsLoading(true);
       const response = await rewardService.getRewardItems();
       if (response.success && response.data) {
-        // 实际API返回的数据结构是 { items: [], currentStage: 1, stage2Unlocked: false }
+        // API返回的数据结构: { items: [], stage2Unlocked: boolean, availableStages: [], stageStats: {} }
         const items = response.data.items || [];
+        const availableStages = response.data.availableStages || [1];
+        const currentMaxStage = Math.max(...availableStages);
+        
         setRewardItems(items);
-        setCurrentStage(response.data.currentStage || 1);
+        setCurrentStage(currentMaxStage);
         setStage2Unlocked(response.data.stage2Unlocked || false);
+        
+        console.log('奖品数据加载成功:', {
+          itemsCount: items.length,
+          currentStage: currentMaxStage,
+          stage2Unlocked: response.data.stage2Unlocked,
+          availableStages: response.data.availableStages
+        });
       } else if (response.message && !response.message.includes('暂无')) {
         // 只有真正的错误才显示错误消息，暂无记录不显示
         console.warn('加载奖励商品:', response.message);
@@ -628,9 +638,20 @@ const Points: React.FC = () => {
 
       if (response.success) {
         message.success(`兑换成功！优惠券码：${response.data.couponCode}`);
-        // 重新加载数据
+        
+        // 检查是否有新阶段解锁信息
+        if (response.data.stage2Unlocked !== undefined) {
+          setStage2Unlocked(response.data.stage2Unlocked);
+          if (response.data.stage2Unlocked) {
+            message.info('🎉 恭喜！第二阶段已解锁！');
+          }
+        }
+        
+        // 重新加载数据以获取最新状态
+        console.log('兑换成功，重新加载数据...');
         await loadData();
         await loadRewards();
+        console.log('数据重新加载完成');
       }
     } catch (error: any) {
       message.error(error?.message || '兑换失败');
@@ -735,8 +756,9 @@ const Points: React.FC = () => {
         const dayDate = new Date(dayStatus.date);
         dayDate.setHours(0, 0, 0, 0);
         
-        // 如果这一天已经过去了但是没有签到，就是漏签
-        if (dayDate <= today && !dayStatus.signed) {
+        // 只检查已经过去的日期，如果这一天已经过去了但是没有签到，就是漏签
+        // 注意：要确保这一天确实已经过去（小于今天），而不是今天或未来
+        if (dayDate < today && !dayStatus.signed) {
           return true;
         }
       }
@@ -768,8 +790,14 @@ const Points: React.FC = () => {
       } else {
         // 计算还需要签到几天
         let signedDays = 0;
-        for (let i = 0; i < todayDayOfWeek && i < weekStatus.length; i++) {
-          if (weekStatus[i].signed) {
+        // 只计算到今天为止（包括今天）已经签到的天数
+        for (let i = 0; i <= todayDayOfWeek - 1 && i < weekStatus.length; i++) {
+          const dayStatus = weekStatus[i];
+          const dayDate = new Date(dayStatus.date);
+          dayDate.setHours(0, 0, 0, 0);
+          
+          // 只计算今天及之前已经签到的天数
+          if (dayDate <= today && dayStatus.signed) {
             signedDays++;
           }
         }
@@ -914,8 +942,10 @@ const Points: React.FC = () => {
                 const userPoints = pointsAccount?.balance || 0;
                 const isOutOfStock = item.stock <= 0;
                 const isInsufficientPoints = userPoints < item.pointsCost;
-                const isLocked = !item.isUnlocked; // 使用后端返回的锁定状态
-                const canExchange = item.canExchange && !loading; // 使用后端返回的可兑换状态
+                // 使用后端返回的锁定状态，这是最准确的判断
+                const isLocked = item.isUnlocked === false;
+                // 使用后端返回的可兑换状态
+                const canExchange = item.canExchange === true && !loading;
                 
                 let buttonText = '兑换';
                 let buttonColor = 'transparent';
@@ -931,6 +961,20 @@ const Points: React.FC = () => {
                 } else if (isInsufficientPoints) {
                   buttonText = '积分不够';
                   buttonColor = 'rgba(255, 255, 255, 0.1)';
+                }
+
+                // 调试信息 - 可以在生产环境中删除
+                if (item.stage === 2) {
+                  console.log(`第二阶段商品调试:`, {
+                    name: item.name,
+                    isUnlocked: item.isUnlocked,
+                    canExchange: item.canExchange,
+                    hasStock: item.hasStock,
+                    stock: item.stock,
+                    lockReason: item.lockReason,
+                    stage2Unlocked: stage2Unlocked,
+                    currentStage: currentStage
+                  });
                 }
 
                 return (

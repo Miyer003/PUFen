@@ -1,3 +1,4 @@
+// team.controller.ts
 import { FastifyPluginAsync } from "fastify";
 import { authHook } from "../middleware/auth.hook";
 import { AppDataSource } from "../config/db";
@@ -9,455 +10,432 @@ import { PointsAccount } from "../entities/PointsAccount";
 import { PointsTransaction } from "../entities/PointsTransaction";
 
 export const teamRoutes: FastifyPluginAsync = async (fastify) => {
-    fastify.addHook('preHandler', authHook);
+  fastify.addHook('preHandler', authHook);
+    
+  // 工具
+    
+  // 邀请码
+  const generateInviteCode = (): string =>
+    Math.random().toString(36).substring(2, 8).toUpperCase();
+  // 积分
+  const addPointsToUser = async (
+    userId: string,
+    points: number,
+    desc: string,
+    relatedId: string
+  ) => {
+    const paRepo = AppDataSource.getRepository(PointsAccount);
+    const ptRepo = AppDataSource.getRepository(PointsTransaction);
 
-    // 生成6位邀请码
-    const generateInviteCode = (): string => {
-        return Math.random().toString(36).substring(2, 8).toUpperCase();
-    };
+    let account = await paRepo.findOneBy({ userId });
+    if (!account) {
+      account = paRepo.create({ userId, balance: 0, totalEarned: 0, totalUsed: 0 });
+    }
+    const before = account.balance;
+    account.balance += points;
+    account.totalEarned += points;
+    await paRepo.save(account);
 
-    // 积分
-    const addPointsToUser = async (userId: string, points: number, description: string, relatedId: string) => {
-        const pointsAccountRepo = AppDataSource.getRepository(PointsAccount);
-        const pointsTransactionRepo = AppDataSource.getRepository(PointsTransaction);
+    const tran = ptRepo.create({
+      userId,
+      accountId: account.id,
+      amount: points,
+      type: 'earn',
+      source: 'team',
+      relatedId,
+      description: desc,
+      balanceBefore: before,
+      balanceAfter: account.balance,
+    });
+    await ptRepo.save(tran);
+    return account.balance;
+  };
 
-        // 获取或创建用户积分账户
-        let account = await pointsAccountRepo.findOneBy({ userId });
-        if (!account) {
-            account = pointsAccountRepo.create({
-                userId,
-                balance: 0,
-                totalEarned: 0,
-                totalUsed: 0
-            });
-        }
-
-        const balanceBefore = account.balance;
-
-        // 更新积分余额
-        account.balance += points;
-        account.totalEarned += points;
-        await pointsAccountRepo.save(account);
-
-        // 创建积分流水记录
-        const transaction = pointsTransactionRepo.create({
-            userId,
-            accountId: account.id,
-            amount: points,
-            type: 'earn',
-            source: 'team',
-            relatedId,
-            description,
-            balanceBefore,
-            balanceAfter: account.balance
-        });
-        await pointsTransactionRepo.save(transaction);
-
-        return account.balance;
-    };
-
-    // 团队记录
-    const createTeamRecord = async (team: Team, members: TeamMember[]) => {
-        const teamRecordRepo = AppDataSource.getRepository(TeamRecord);
-        const records: TeamRecord[] = [];
-
-        for (const member of members) {
-            const record = teamRecordRepo.create({
-                userId: member.userId,
-                teamId: team.id,
-                teamName: team.name,
-                role: member.role,
-                pointsEarned: member.pointsEarned,
-                isNewUser: member.isNewUser,
-                status: team.status,
-                memberCount: members.length,
-                completedAt: new Date()
-            });
-            records.push(record);
-        }
-
-        await teamRecordRepo.save(records);
-        return records;
-    };
-
-    // 创建团队
-    fastify.post(
-        '/teams',
-        async (req, reply) => {
-            const userId = req.user!.id;
-            const { name } = req.body as { name: string };
-            const teamRepo = AppDataSource.getRepository(Team);
-            const memberRepo = AppDataSource.getRepository(TeamMember);
-
-            // 检查用户是否已有活跃团队
-            const existingMember = await memberRepo
-                .createQueryBuilder('member')
-                .leftJoin('member.team', 'team')
-                .where('member.userId = :userId', { userId })
-                .andWhere('team.status = :status', { status: 'active' })
-                .andWhere('team.endTime > :now', { now: new Date() })
-                .getOne();
-
-            if (existingMember) {
-                return reply.status(400).send({
-                    success: false,
-                    message: '您已经在一个活跃团队中'
-                });
-            }
-
-            // 创建团队
-            const inviteCode = generateInviteCode();
-            const now = new Date();
-            const endTime = new Date(now.getTime() + 3 * 60 * 60 * 1000); // 3小时后过期
-
-            const team = teamRepo.create({
-                captainId: userId,
-                name: name,
-                inviteCode,
-                startTime: now,
-                endTime: endTime,
-                totalPoints: 100,
-                status: 'active',
-                createdAt: now
-            });
-            await teamRepo.save(team);
-
-            // 队长加入团队，默认获得50分
-            const captain = memberRepo.create({
-                teamId: team.id,
-                userId: userId,
-                role: 'captain',
-                isNewUser: req.user!.isNewUser || false,
-                pointsEarned: 50,
-                joinedAt: now
-            });
-            await memberRepo.save(captain);
-
-            // 给队长的积分账户增加积分并创建流水记录
-            const newBalance = await addPointsToUser(
-                userId, 
-                50, 
-                `创建团队「${team.name}」获得队长奖励`, 
-                team.id
-            );
-
-            return reply.status(201).send({
-                success: true,
-                data: {
-                    team: {
-                        ...team,
-                        memberCount: 1,
-                        remainingTime: Math.max(0, Math.floor((endTime.getTime() - Date.now()) / 1000))
-                    },
-                    pointsEarned: 50
-                }
-            });
-        }
+  // 组队记录
+  const createTeamRecord = async (team: Team, members: TeamMember[]) => {
+    const repo = AppDataSource.getRepository(TeamRecord);
+    const records = members.map(m =>
+      repo.create({
+        userId: m.userId,
+        teamId: team.id,
+        teamName: team.name,
+        role: m.role,
+        pointsEarned: m.pointsEarned,
+        isNewUser: m.isNewUser,
+        status: team.status,
+        memberCount: members.length,
+        completedAt: new Date(),
+      })
     );
+    await repo.save(records);
+    return records;
+  };
 
-    // 通过邀请码加入团队
-    fastify.post(
-        '/teams/join-by-code',
-        async (req, reply) => {
-            const userId = req.user!.id;
-            let isNewUser = req.user!.isNewUser || false;
-            const { inviteCode } = req.body as { inviteCode: string };
-            const teamRepo = AppDataSource.getRepository(Team);
-            const memberRepo = AppDataSource.getRepository(TeamMember);
+  // 积分发放
+  const distributePointsIfFull = async (teamId: string) => {
+    const memberRepo = AppDataSource.getRepository(TeamMember);
+    const teamRepo = AppDataSource.getRepository(Team);
+    const userRepo = AppDataSource.getRepository(User);
 
-            // 查找团队
-            const team = await teamRepo.findOneBy({ inviteCode, status: 'active' });
-            if (!team) {
-                return reply.status(400).send({
-                    success: false,
-                    message: '邀请码无效或团队已过期'
-                });
-            }
+    const members = await memberRepo.findBy({ teamId });
+    if (members.length !== 3) return; // 未满
 
-            // 检查团队是否过期
-            const now = new Date();
-            if (team.endTime.getTime() < now.getTime()) {
-                // 自动设置为过期状态
-                team.status = 'expired';
-                await teamRepo.save(team);
-                
-                return reply.status(400).send({
-                    success: false,
-                    message: '团队已过期'
-                });
-            }
+    const team = await teamRepo.findOneByOrFail({ id: teamId });
 
-            // 检查用户是否已经在团队中
-            const existingMember = await memberRepo.findOneBy({ userId, teamId: team.id });
-            if (existingMember) {
-                return reply.status(400).send({
-                    success: false,
-                    message: '您已经是团队成员'
-                });
-            }
+    // 统计新用户数量
+    const newUserCount = members.filter(m => m.isNewUser).length;
+    
+    // 队长
+    const captain = members.find(m => m.role === 'captain')!;
+    let captainPoints = 50; // 基础分
+    if (captain.isNewUser) captainPoints += 10; // 自己是新用户加10分
+    // 每邀请一个新用户加10分（排除自己）
+    const invitedNewUsers = newUserCount - (captain.isNewUser ? 1 : 0);
+    captainPoints += invitedNewUsers * 10;
+    
+    // 更新队长的pointsEarned - 使用正确的条件
+    captain.pointsEarned = captainPoints;
+    await memberRepo.save(captain);
+    await addPointsToUser(captain.userId, captainPoints, `团队「${team.name}」人满结算（队长）`, team.id);
+    if (captain.isNewUser) await userRepo.update(captain.userId, { isNewUser: false });
 
-            // 检查用户是否在其他活跃团队中
-            const otherActiveMember = await memberRepo
-                .createQueryBuilder('member')
-                .leftJoin('member.team', 'team')
-                .where('member.userId = :userId', { userId })
-                .andWhere('team.status = :status', { status: 'active' })
-                .andWhere('team.endTime > :now', { now: new Date() })
-                .getOne();
+    // 队员
+    for (const m of members.filter(m => m.role === 'member')) {
+      let pts = 25; // 基础分
+      if (m.isNewUser) pts += 10; // 自己是新用户加10分
+      
+      // 更新队员的pointsEarned - 使用正确的条件
+      m.pointsEarned = pts;
+      await memberRepo.save(m);
+      await addPointsToUser(m.userId, pts, `团队「${team.name}」人满结算（队员）`, team.id);
+      if (m.isNewUser) await userRepo.update(m.userId, { isNewUser: false });
+    }
 
-            if (otherActiveMember) {
-                return reply.status(400).send({
-                    success: false,
-                    message: '您已经在其他活跃团队中'
-                });
-            }
+    team.status = 'completed';
+    await teamRepo.save(team);
+    
+    // 直接使用更新后的members数据，不需要重新查询
+    const updatedMembers = await memberRepo.findBy({ teamId });
+    await createTeamRecord(team, updatedMembers);
+    // await createTeamRecord(team, members);
+  };
 
-            // 检查团队人数限制（最多3人）
-            const currentMemberCount = await memberRepo.count({ where: { teamId: team.id } });
-            if (currentMemberCount >= 3) {
-                return reply.status(400).send({
-                    success: false,
-                    message: '团队已满员，无法加入'
-                });
-            }
+  // 路由
 
-            // 计算积分分配
-            let memberPoints = 25; // 成员基础积分
-            let captainBonusPoints = 0; // 队长奖励积分
+  // 创建团队
+  fastify.post('/teams', async (req, reply) => {
+    try {
+      const userId = req.user!.id;
+      const { name } = req.body as { name: string };
+      const teamRepo = AppDataSource.getRepository(Team);
+      const memberRepo = AppDataSource.getRepository(TeamMember);
 
-            if (isNewUser) {
-                memberPoints = 35; // 新用户获得额外10分
-                captainBonusPoints = 10; // 队长也获得额外10分
-            }
+      // 检查团队名称是否已存在
+      const existingTeam = await teamRepo.findOne({ 
+        where: [
+          { name, status: 'active' }, 
+          { name, status: 'expired' }
+        ]
+      });
+      if (existingTeam) {
+        return reply.status(400).send({ success: false, message: '团队名称已存在，请使用其他名称' });
+      }
 
-            // 如果有新用户加入，给队长加分
-            if (captainBonusPoints > 0) {
-                const captain = await memberRepo.findOneBy({ teamId: team.id, role: 'captain' });
-                if (captain) {
-                    captain.pointsEarned += captainBonusPoints;
-                    await memberRepo.save(captain);
-                    
-                    // 给队长的积分账户增加奖励积分
-                    await addPointsToUser(
-                        captain.userId, 
-                        captainBonusPoints, 
-                        `邀请新用户加入团队「${team.name}」获得奖励`, 
-                        team.id
-                    );
-                }
-            }
+      const existing = await memberRepo
+        .createQueryBuilder('m')
+        .leftJoin('m.team', 't')
+        .where('m.userId = :userId', { userId })
+        .andWhere('t.status = :st', { st: 'active' })
+        .andWhere('t.endTime > :now', { now: new Date() })
+        .getOne();
+      if (existing) return reply.status(400).send({ success: false, message: '您已在活跃队伍中' });
 
-            // 新成员加入团队
-            const member = memberRepo.create({
-                teamId: team.id,
-                userId: userId,
-                role: 'member',
-                isNewUser,
-                pointsEarned: memberPoints,
-                joinedAt: now
-            });
-            await memberRepo.save(member);
+      const now = new Date();
+      const endTime = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+      const team = teamRepo.create({
+        captainId: userId,
+        name,
+        inviteCode: generateInviteCode(),
+        startTime: now,
+        endTime,
+        totalPoints: 100,
+        status: 'active',
+        createdAt: now,
+      });
+      await teamRepo.save(team);
 
-            // 给新成员的积分账户增加积分
-            const memberDescription = isNewUser 
-                ? `新用户加入团队「${team.name}」获得奖励` 
-                : `加入团队「${team.name}」获得奖励`;
-            
-            if (isNewUser) {
-                const userRepo = AppDataSource.getRepository(User);
-                await userRepo.update(userId, { isNewUser: false }); 
-            }
+      const captain = memberRepo.create({
+        teamId: team.id,
+        userId,
+        role: 'captain',
+        isNewUser: req.user!.isNewUser || false,
+        pointsEarned: 0, // 先不发
+        joinedAt: now,
+      });
+      await memberRepo.save(captain);
 
-            const newBalance = await addPointsToUser(
-                userId, 
-                memberPoints, 
-                memberDescription, 
-                team.id
-            );
+      return reply.status(201).send({
+        success: true,
+        data: {
+          team: { ...team, memberCount: 1, remainingTime: Math.max(0, Math.floor((endTime.getTime() - Date.now()) / 1000)) },
+          pointsEarned: 0,
+        },
+      });
+    } catch (error) {
+      console.error('创建团队错误:', error);
+      return reply.status(500).send({ success: false, message: '创建团队失败，请稍后重试' });
+    }
+  });
 
-            // 检查团队是否满员，如果满员则自动设置为完成状态
-            const updatedMemberCount = currentMemberCount + 1;
-            if (updatedMemberCount >= 3) {
-                team.status = 'completed';
-                await teamRepo.save(team);
-                
-                // 创建团队记录
-                const allMembers = await memberRepo.find({ where: { teamId: team.id } });
-                await createTeamRecord(team, allMembers);
-            }
+  // 邀请码加入队伍
+  fastify.post('/teams/join-by-code', async (req, reply) => {
+    try {
+      const userId = req.user!.id;
+      const isNewUser = req.user!.isNewUser || false;
+      const { inviteCode } = req.body as { inviteCode: string };
+      const teamRepo = AppDataSource.getRepository(Team);
+      const memberRepo = AppDataSource.getRepository(TeamMember);
 
-            const remainingTime = Math.max(0, Math.floor((team.endTime.getTime() - Date.now()) / 1000));
+      const team = await teamRepo.findOneBy({ inviteCode, status: 'active' });
+      if (!team) return reply.status(400).send({ success: false, message: '邀请码无效或团队已过期' });
+      if (team.endTime.getTime() < Date.now()) {
+        team.status = 'expired';
+        await teamRepo.save(team);
+        return reply.status(400).send({ success: false, message: '团队已过期' });
+      }
 
-            return reply.send({
-                success: true,
-                message: `成功加入团队「${team.name}」`,
-                data: {
-                    pointsEarned: memberPoints,
-                    captainBonus: captainBonusPoints,
-                    teamInfo: {
-                        id: team.id,
-                        name: team.name,
-                        inviteCode: team.inviteCode,
-                        captainId: team.captainId,
-                        memberCount: updatedMemberCount,
-                        maxMembers: 3,
-                        totalPoints: team.totalPoints,
-                        status: team.status,
-                        startTime: team.startTime,
-                        endTime: team.endTime,
-                        remainingTime: remainingTime
-                    }
-                }
-            });
+      const exist = await memberRepo.findOneBy({ userId, teamId: team.id });
+      if (exist) return reply.status(400).send({ success: false, message: '您已在团队中' });
+
+      const other = await memberRepo
+        .createQueryBuilder('m')
+        .leftJoin('m.team', 't')
+        .where('m.userId = :userId', { userId })
+        .andWhere('t.status = :st', { st: 'active' })
+        .andWhere('t.endTime > :now', { now: new Date() })
+        .getOne();
+      if (other) return reply.status(400).send({ success: false, message: '您已在其他活跃队伍中' });
+
+      const count = await memberRepo.count({ where: { teamId: team.id } });
+      if (count >= 3) return reply.status(400).send({ success: false, message: '团队已满员' });
+
+      const member = memberRepo.create({
+        teamId: team.id,
+        userId,
+        role: 'member',
+        isNewUser,
+        pointsEarned: 0,
+        joinedAt: new Date(),
+      });
+      await memberRepo.save(member);
+
+      const newCount = count + 1;
+      if (newCount === 3) await distributePointsIfFull(team.id);
+
+      return reply.send({
+        success: true,
+        message: `成功加入团队「${team.name}」`,
+        data: {
+          pointsEarned: 0,
+          captainBonus: 0,
+          teamInfo: {
+            id: team.id,
+            name: team.name,
+            inviteCode: team.inviteCode,
+            captainId: team.captainId,
+            memberCount: newCount,
+            maxMembers: 3,
+            totalPoints: team.totalPoints,
+            status: team.status,
+            startTime: team.startTime,
+            endTime: team.endTime,
+            remainingTime: Math.max(0, Math.floor((team.endTime.getTime() - Date.now()) / 1000)),
+          },
+        },
+      });
+    } catch (error) {
+      console.error('加入队伍错误:', error);
+      return reply.status(500).send({ success: false, message: '加入队伍失败，请稍后重试' });
+    }
+  });
+
+  // 队长解散队伍
+  fastify.delete('/teams', async (req, reply) => {
+    try {
+      const userId = req.user!.id;
+      const memberRepo = AppDataSource.getRepository(TeamMember);
+      const teamRepo = AppDataSource.getRepository(Team);
+
+      const captain = await memberRepo.findOne({ where: { userId, role: 'captain' }, relations: ['team'] });
+      if (!captain || !captain.team) return reply.status(403).send({ success: false, message: '您不是队长' });
+
+      const team = captain.team;
+      
+      // 检查队伍状态，如果已完成积分分发则不能解散
+      if (team.status === 'completed') {
+        return reply.status(400).send({ success: false, message: '队伍已完成积分分发，无法解散' });
+      }
+
+      await memberRepo.delete({ teamId: team.id });
+      await teamRepo.remove(team);
+
+      return reply.send({ success: true, message: '队伍已解散' });
+    } catch (error) {
+      console.error('解散队伍错误:', error);
+      return reply.status(500).send({ success: false, message: '解散队伍失败，请稍后重试' });
+    }
+  });
+
+  // 队员退出队伍
+  fastify.delete('/teams/leave', async (req, reply) => {
+    try {
+      const userId = req.user!.id;
+      const memberRepo = AppDataSource.getRepository(TeamMember);
+      const teamRepo = AppDataSource.getRepository(Team);
+
+      const member = await memberRepo.findOne({ where: { userId }, relations: ['team'] });
+      if (!member || !member.team) return reply.status(400).send({ success: false, message: '您不在任何活跃队伍中' });
+      if (member.role === 'captain') return reply.status(400).send({ success: false, message: '队长请使用解散队伍功能' });
+
+      const team = member.team;
+      
+      // 检查队伍状态，如果已完成积分分发则不能退出
+      if (team.status === 'completed') {
+        return reply.status(400).send({ success: false, message: '队伍已完成积分分发，无法退出' });
+      }
+
+      await memberRepo.remove(member);
+      return reply.send({ success: true, message: '已退出队伍' });
+    } catch (error) {
+      console.error('退出队伍错误:', error);
+      return reply.status(500).send({ success: false, message: '退出队伍失败，请稍后重试' });
+    }
+  });
+
+  // 刷新邀请码
+  fastify.put('/teams/refresh-invite-code', async (req, reply) => {
+    try {
+      const userId = req.user!.id;
+      const memberRepo = AppDataSource.getRepository(TeamMember);
+      const teamRepo = AppDataSource.getRepository(Team);
+
+      const captain = await memberRepo.findOne({
+        where: { userId, role: 'captain' },
+        relations: ['team'],
+        order: { team: { endTime: 'DESC' } },
+      });
+      if (!captain || !captain.team) {
+        return reply.status(404).send({ success: false, message: '您没有队伍或不是队长' });
+      }
+
+      const team = captain.team;
+      const now = new Date();
+      
+      // 检查队伍状态
+      if (team.status === 'completed') {
+        return reply.status(400).send({ success: false, message: '队伍已完成，无法刷新邀请码' });
+      }
+      
+      if (team.status === 'active' && team.endTime.getTime() > now.getTime()) {
+        const count = await memberRepo.count({ where: { teamId: team.id } });
+        if (count < 3) {
+          const remainingMinutes = Math.ceil((team.endTime.getTime() - now.getTime()) / (60 * 1000));
+          const remainingHours = Math.floor(remainingMinutes / 60);
+          const mins = remainingMinutes % 60;
+          const timeStr = remainingHours > 0 ? `${remainingHours}小时${mins}分钟` : `${mins}分钟`;
+          return reply.status(400).send({ 
+            success: false, 
+            message: `队伍未满员且还有${timeStr}有效期，请等待队员加入或时间到期后再刷新` 
+          });
         }
-    );
-
-        // 手动刷新邀请码
-    fastify.put(
-        '/teams/refresh-invite-code',
-        async (req, reply) => {
-            const userId = req.user!.id;
-            const teamRepo = AppDataSource.getRepository(Team);
-            const memberRepo = AppDataSource.getRepository(TeamMember);
-
-            // 查找用户作为队长的团队（包括已完成和过期的）
-            const member = await memberRepo
-                .createQueryBuilder('member')
-                .leftJoinAndSelect('member.team', 'team')
-                .where('member.userId = :userId', { userId })
-                .andWhere('member.role = :role', { role: 'captain' })
-                .orderBy('team.endTime', 'DESC') // 按结束时间降序排列
-                .getOne();
-
-            if (!member || !member.team) {
-                return reply.status(404).send({
-                    success: false,
-                    message: '您没有团队或不是队长'
-                });
-            }
-
-            const team = member.team;
-            const now = new Date();
-            
-            // 只有团队已完成、已过期或已经超过3小时的才能刷新创建新团队
-            if (team.status === 'active' && team.endTime.getTime() > now.getTime()) {
-                // 检查是否满员
-                const currentMemberCount = await memberRepo.count({ where: { teamId: team.id } });
-                if (currentMemberCount < 3) {
-                    const remainingMinutes = Math.ceil((team.endTime.getTime() - now.getTime()) / (60 * 1000));
-                    return reply.status(400).send({
-                        success: false,
-                        message: `团队还有 ${remainingMinutes} 分钟有效期且未满员，无法创建新团队`
-                    });
-                }
-                // 如果满员，自动设置为完成状态
-                team.status = 'completed';
-                await teamRepo.save(team);
-            }
-            
-            // 生成新的邀请码并重新设定3小时有效期
-            const newInviteCode = generateInviteCode();
-            const newEndTime = new Date(now.getTime() + 3 * 60 * 60 * 1000);
-
-            // 重置团队为活跃状态
-            team.status = 'active';
-            team.inviteCode = newInviteCode;
-            team.endTime = newEndTime;
-            await teamRepo.save(team);
-
-            return reply.send({
-                success: true,
-                data: {
-                    teamName: team.name,
-                    newInviteCode,
-                    newEndTime,
-                    remainingTime: Math.max(0, Math.floor((newEndTime.getTime() - Date.now()) / 1000)),
-                    message: '邀请码已刷新，团队有效期重新计算3小时'
-                }
-            });
+        // 如果满员了，触发积分分发
+        if (count === 3) {
+          await distributePointsIfFull(team.id);
+          // 重新查询team状态，因为distributePointsIfFull会将状态设为completed
+          const updatedTeam = await teamRepo.findOneByOrFail({ id: team.id });
+          if (updatedTeam.status === 'completed') {
+            return reply.status(400).send({ success: false, message: '队伍已完成，无法刷新邀请码' });
+          }
         }
-    );
+      }
 
-    // 获取我的活跃团队
-    fastify.get(
-        '/teams/my-active',
-        async (req, reply) => {
-            const userId = req.user!.id;
-            const memberRepo = AppDataSource.getRepository(TeamMember);
+      // 生成新的邀请码和时间
+      const newCode = generateInviteCode();
+      const newEnd = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+      team.status = 'active';
+      team.inviteCode = newCode;
+      team.endTime = newEnd;
+      team.startTime = now; // 重新设置开始时间
+      await teamRepo.save(team);
 
-            // 查找用户参与的活跃团队
-            const member = await memberRepo
-                .createQueryBuilder('member')
-                .leftJoinAndSelect('member.team', 'team')
-                .where('member.userId = :userId', { userId })
-                .andWhere('team.status = :status', { status: 'active' })
-                .andWhere('team.endTime > :now', { now: new Date() })
-                .getOne();
+      return reply.send({
+        success: true,
+        data: {
+          teamName: team.name,
+          newInviteCode: newCode,
+          newEndTime: newEnd,
+          remainingTime: Math.max(0, Math.floor((newEnd.getTime() - Date.now()) / 1000)),
+          message: '邀请码已刷新，有效期重新计算为3小时',
+        },
+      });
+    } catch (error) {
+      console.error('刷新邀请码错误:', error);
+      return reply.status(500).send({ success: false, message: '刷新邀请码失败，请稍后重试' });
+    }
+  });
 
-            if (!member || !member.team) {
-                return reply.send({
-                    success: true,
-                    data: null,
-                    message: '暂无活跃团队'
-                });
-            }
+  fastify.get('/teams/my-active', async (req, reply) => {
+    const userId = req.user!.id;
+    const memberRepo = AppDataSource.getRepository(TeamMember);
+    const teamRepo = AppDataSource.getRepository(Team);
 
-            const team = member.team;
-            
-            // 获取团队所有成员
-            const allMembers = await memberRepo
-                .createQueryBuilder('member')
-                .leftJoinAndSelect('member.user', 'user')
-                .where('member.teamId = :teamId', { teamId: team.id })
-                .orderBy('member.joinedAt', 'ASC') // 按加入时间排序，队长在前
-                .getMany();
+    const member = await memberRepo
+      .createQueryBuilder('m')
+      .leftJoinAndSelect('m.team', 't')
+      .where('m.userId = :userId', { userId })
+      .andWhere('t.status = :st', { st: 'active' })
+      .andWhere('t.endTime > :now', { now: new Date() })
+      .getOne();
+    if (!member || !member.team) return reply.send({ success: true, data: null, message: '暂无活跃团队' });
 
-            const remainingTime = Math.max(0, Math.floor((team.endTime.getTime() - Date.now()) / 1000));
-            
-            // 检查团队状态，自动完成或过期
-            const teamRepo = AppDataSource.getRepository(Team);
-            let shouldUpdateStatus = false;
-            
-            if (team.status === 'active') {
-                // 如果团队已过期，更新为过期状态
-                if (remainingTime === 0) {
-                    team.status = 'expired';
-                    shouldUpdateStatus = true;
-                    console.log(`[团队系统] 团队 "${team.name}" 已过期，自动设置为过期状态`);
-                }
-                // 如果团队满员，更新为完成状态
-                else if (allMembers.length >= 3) {
-                    team.status = 'completed';
-                    shouldUpdateStatus = true;
-                    console.log(`[团队系统] 团队 "${team.name}" 已满员，自动设置为完成状态`);
-                }
-                
-                if (shouldUpdateStatus) {
-                    await teamRepo.save(team);
-                }
-            }
+    const team = member.team;
+    const all = await memberRepo
+      .createQueryBuilder('m')
+      .leftJoinAndSelect('m.user', 'u')
+      .where('m.teamId = :tid', { tid: team.id })
+      .orderBy('m.joinedAt', 'ASC')
+      .getMany();
 
-            return reply.send({
-                success: true,
-                data: {
-                    team: {
-                        ...team,
-                        memberCount: allMembers.length,
-                        remainingTime
-                    },
-                    myRole: member.role,
-                    myPoints: member.pointsEarned,
-                    members: allMembers.map(m => ({
-                        id: m.id,
-                        userId: m.userId,
-                        username: m.user?.username || '未知用户',
-                        role: m.role,
-                        pointsEarned: m.pointsEarned,
-                        isNewUser: m.isNewUser,
-                        joinedAt: m.joinedAt
-                    }))
-                }
-            });
-        }
-    );
-};
+    const remaining = Math.max(0, Math.floor((team.endTime.getTime() - Date.now()) / 1000));
+
+    let needUpdate = false;
+    if (team.status === 'active') {
+      if (remaining === 0) {
+        team.status = 'expired';
+        needUpdate = true;
+      } else if (all.length >= 3) {
+        team.status = 'completed';
+        needUpdate = true;
+      }
+      if (needUpdate) await teamRepo.save(team);
+    }
+
+    return reply.send({
+      success: true,
+      data: {
+        team: { ...team, memberCount: all.length, remainingTime: remaining },
+        myRole: member.role,
+        myPoints: member.pointsEarned,
+        members: all.map(m => ({
+          id: m.id,
+          userId: m.userId,
+          username: m.user?.username || '未知用户',
+          role: m.role,
+          pointsEarned: m.pointsEarned,
+          isNewUser: m.isNewUser,
+          joinedAt: m.joinedAt,
+        })),
+      },
+    });
+  });
+}

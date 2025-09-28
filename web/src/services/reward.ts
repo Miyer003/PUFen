@@ -15,8 +15,27 @@ export const rewardService = {
     isLimited?: boolean;
   }): Promise<ApiResponse<{
     items: RewardItem[];
-    currentStage: number;
     stage2Unlocked: boolean;
+    availableStages: number[];
+    stageStats: {
+      stage1: {
+        totalItems: number;
+        availableItems: number;
+        soldOutItems: number;
+      };
+      stage2: {
+        totalItems: number;
+        availableItems: number;
+        soldOutItems: number;
+      };
+      stage2Unlocked: boolean;
+    };
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
   }>> {
     return apiClient.get('/rewards', { params });
   },

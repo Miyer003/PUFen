@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { message } from 'antd';
+import { message, Modal } from 'antd';
 import { 
   LeftOutlined, 
   ShareAltOutlined, 
@@ -11,7 +11,8 @@ import {
   CrownOutlined,
   GiftOutlined,
   InfoCircleOutlined,
-  CheckCircleOutlined
+  CheckCircleOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons';
 import styled from 'styled-components';
 import { SafeArea } from '../components/mobile';
@@ -573,6 +574,80 @@ const JoinSection = styled.div`
   }
 `;
 
+const TeamActionsSection = styled.div`
+  margin-bottom: 24px;
+  
+  .actions-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 16px;
+    
+    .anticon {
+      color: #e74c3c;
+    }
+  }
+  
+  .action-button {
+    width: 100%;
+    height: 48px;
+    background: #dc3545;
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    
+    &:hover {
+      background: #c82333;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(220, 53, 69, 0.3);
+    }
+    
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+      background: #dc3545;
+    }
+    
+    &.captain {
+      background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+      
+      &:hover {
+        background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+      }
+      
+      &:disabled {
+        background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+      }
+    }
+  }
+  
+  .action-tip {
+    margin-top: 12px;
+    font-size: 14px;
+    color: #7f8c8d;
+    text-align: center;
+    line-height: 1.5;
+    
+    .warning {
+      color: #e74c3c;
+      font-weight: 600;
+    }
+  }
+`;
+
 export default function InviteFriend() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -586,7 +661,8 @@ export default function InviteFriend() {
     memberCount: 1,
     totalPoints: 50,
     remainingTime: 0,
-    members: [] as any[]
+    members: [] as any[],
+    myRole: 'member' as 'captain' | 'member'
   });
 
   // 加载团队信息
@@ -596,13 +672,14 @@ export default function InviteFriend() {
       const response = await teamService.getMyActiveTeam();
       
       if (response.success && response.data) {
-        const { team, members } = response.data;
+        const { team, members, myRole } = response.data;
         setTeamInfo({
           name: team.name,
           memberCount: team.memberCount,
           totalPoints: members.reduce((sum, member) => sum + member.pointsEarned, 0),
           remainingTime: team.remainingTime,
-          members: members
+          members: members,
+          myRole: myRole
         });
         setInviteCode(team.inviteCode);
         setHasTeam(true);
@@ -650,10 +727,17 @@ export default function InviteFriend() {
       }
     } catch (error: any) {
       console.error('刷新邀请码失败:', error);
-      if (error?.response?.status === 400) {
-        message.error(error.response.data.message || '操作失败');
-      } else {
+      
+      // 处理不同类型的错误
+      if (error?.message && typeof error.message === 'string') {
+        // 后端返回的错误信息
+        message.error(error.message);
+      } else if (error?.code === 'NETWORK_ERROR' || error?.message?.includes('Network Error')) {
         message.error('网络连接失败，请检查网络');
+      } else if (error?.code === 'ECONNABORTED' || (typeof error === 'object' && error.toString().includes('timeout'))) {
+        message.error('请求超时，请稍后重试');
+      } else {
+        message.error('刷新邀请码失败，请稍后重试');
       }
     } finally {
       setLoading(false);
@@ -672,7 +756,7 @@ export default function InviteFriend() {
       const response = await teamService.createTeam({ name: teamName.trim() });
       
       if (response.success && response.data) {
-        message.success(`团队「${response.data.team.name}」创建成功！您获得了 ${response.data.pointsEarned} 分！`);
+        message.success(`团队「${response.data.team.name}」创建成功！`);
         // 重新加载团队信息
         await loadTeamInfo();
         setTeamName('');
@@ -681,10 +765,17 @@ export default function InviteFriend() {
       }
     } catch (error: any) {
       console.error('创建团队失败:', error);
-      if (error?.response?.status === 400) {
-        message.error(error.response.data.message || '创建失败');
-      } else {
+      
+      // 处理不同类型的错误
+      if (error?.message && typeof error.message === 'string') {
+        // 后端返回的错误信息
+        message.error(error.message);
+      } else if (error?.code === 'NETWORK_ERROR' || error?.message?.includes('Network Error')) {
         message.error('网络连接失败，请检查网络');
+      } else if (error?.code === 'ECONNABORTED' || (typeof error === 'object' && error.toString().includes('timeout'))) {
+        message.error('请求超时，请稍后重试');
+      } else {
+        message.error('创建团队失败，请稍后重试');
       }
     } finally {
       setLoading(false);
@@ -702,7 +793,7 @@ export default function InviteFriend() {
       const response = await teamService.joinTeamByCode(code);
       
       if (response.success && response.data) {
-        message.success(`成功加入团队！您获得了 ${response.data.pointsEarned} 分！`);
+        message.success(`成功加入团队「${response.data.teamInfo?.name || ''}」！`);
         // 重新加载团队信息
         await loadTeamInfo();
         setInputCode('');
@@ -711,10 +802,17 @@ export default function InviteFriend() {
       }
     } catch (error: any) {
       console.error('加入团队失败:', error);
-      if (error?.response?.status === 400) {
-        message.error(error.response.data.message || '加入失败');
-      } else {
+      
+      // 处理不同类型的错误
+      if (error?.message && typeof error.message === 'string') {
+        // 后端返回的错误信息
+        message.error(error.message);
+      } else if (error?.code === 'NETWORK_ERROR' || error?.message?.includes('Network Error')) {
         message.error('网络连接失败，请检查网络');
+      } else if (error?.code === 'ECONNABORTED' || (typeof error === 'object' && error.toString().includes('timeout'))) {
+        message.error('请求超时，请稍后重试');
+      } else {
+        message.error('加入团队失败，请稍后重试');
       }
     } finally {
       setLoading(false);
@@ -759,6 +857,106 @@ export default function InviteFriend() {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     return `${hours}小时${minutes}分钟`;
+  };
+
+  // 队长解散队伍
+  const handleDissolveTeam = async () => {
+    // 使用 Ant Design 的模态对话框
+    Modal.confirm({
+      title: '解散队伍',
+      content: (
+        <div>
+          <p>确定要解散团队「{teamInfo.name}」吗？</p>
+          <p style={{ color: '#ff4d4f', fontSize: '14px', marginBottom: 0 }}>
+            注意：已满员的团队无法解散！
+          </p>
+        </div>
+      ),
+      icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />,
+      okText: '确定解散',
+      cancelText: '取消',
+      okType: 'danger',
+      onOk: async () => {
+        try {
+          setLoading(true);
+          const response = await teamService.dissolveTeam();
+          
+          if (response.success) {
+            message.success('团队已解散');
+            // 重新加载页面状态
+            await loadTeamInfo();
+          } else {
+            message.error(response.message || '解散失败');
+          }
+        } catch (error: any) {
+          console.error('解散团队失败:', error);
+          
+          // 处理不同类型的错误
+          if (error?.message && typeof error.message === 'string') {
+            // 后端返回的错误信息
+            message.error(error.message);
+          } else if (error?.code === 'NETWORK_ERROR' || error?.message?.includes('Network Error')) {
+            message.error('网络连接失败，请检查网络');
+          } else if (error?.code === 'ECONNABORTED' || (typeof error === 'object' && error.toString().includes('timeout'))) {
+            message.error('请求超时，请稍后重试');
+          } else {
+            message.error('解散团队失败，请稍后重试');
+          }
+        } finally {
+          setLoading(false);
+        }
+      }
+    });
+  };
+
+  // 队员退出队伍
+  const handleLeaveTeam = async () => {
+    // 使用 Ant Design 的模态对话框
+    Modal.confirm({
+      title: '退出队伍',
+      content: (
+        <div>
+          <p>确定要退出团队「{teamInfo.name}」吗？</p>
+          <p style={{ color: '#ff4d4f', fontSize: '14px', marginBottom: 0 }}>
+            注意：已满员的团队无法退出！
+          </p>
+        </div>
+      ),
+      icon: <ExclamationCircleOutlined style={{ color: '#ff7a45' }} />,
+      okText: '确定退出',
+      cancelText: '取消',
+      okType: 'primary',
+      onOk: async () => {
+        try {
+          setLoading(true);
+          const response = await teamService.leaveTeam();
+          
+          if (response.success) {
+            message.success('已退出团队');
+            // 重新加载页面状态
+            await loadTeamInfo();
+          } else {
+            message.error(response.message || '退出失败');
+          }
+        } catch (error: any) {
+          console.error('退出团队失败:', error);
+          
+          // 处理不同类型的错误
+          if (error?.message && typeof error.message === 'string') {
+            // 后端返回的错误信息
+            message.error(error.message);
+          } else if (error?.code === 'NETWORK_ERROR' || error?.message?.includes('Network Error')) {
+            message.error('网络连接失败，请检查网络');
+          } else if (error?.code === 'ECONNABORTED' || (typeof error === 'object' && error.toString().includes('timeout'))) {
+            message.error('请求超时，请稍后重试');
+          } else {
+            message.error('退出团队失败，请稍后重试');
+          }
+        } finally {
+          setLoading(false);
+        }
+      }
+    });
   };
 
   return (
@@ -909,12 +1107,57 @@ export default function InviteFriend() {
                         </div>
                       </div>
                       <div className="member-points">
-                        <div className="points-value">+{member.pointsEarned}</div>
-                        <div className="points-label">积分</div>
+                        {teamInfo.memberCount >= 3 ? (
+                          <>
+                            <div className="points-value">+{member.pointsEarned}</div>
+                            <div className="points-label">积分</div>
+                          </>
+                        ) : (
+                          <div className="points-label" style={{ fontSize: '12px', color: '#999' }}>
+                            满员后结算
+                          </div>
+                        )}
                       </div>
                     </MemberCard>
                   ))}
                 </MembersSection>
+
+                {/* 团队操作 */}
+                <TeamActionsSection>
+                  <div className="actions-title">
+                    <ExclamationCircleOutlined />
+                    团队操作
+                  </div>
+                  <button 
+                    className={`action-button ${teamInfo.myRole === 'captain' ? 'captain' : ''}`}
+                    onClick={teamInfo.myRole === 'captain' ? handleDissolveTeam : handleLeaveTeam}
+                    disabled={loading || teamInfo.memberCount >= 3}
+                  >
+                    {loading ? (
+                      <>
+                        <ReloadOutlined spin />
+                        {teamInfo.myRole === 'captain' ? '解散中...' : '退出中...'}
+                      </>
+                    ) : teamInfo.myRole === 'captain' ? (
+                      <>
+                        <CrownOutlined />
+                        解散团队
+                      </>
+                    ) : (
+                      <>
+                        <ExclamationCircleOutlined />
+                        退出团队
+                      </>
+                    )}
+                  </button>
+                  <div className="action-tip">
+                    {teamInfo.memberCount >= 3 ? (
+                      <span className="warning">团队已满员，无法{teamInfo.myRole === 'captain' ? '解散' : '退出'}</span>
+                    ) : (
+                      `${teamInfo.myRole === 'captain' ? '解散后团队将被删除，所有成员将离开' : '退出后需要重新加入其他团队'}`
+                    )}
+                  </div>
+                </TeamActionsSection>
 
                 {/* 邀请码分享 */}
                 <InviteCodeCard>

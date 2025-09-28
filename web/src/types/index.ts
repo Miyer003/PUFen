@@ -147,7 +147,11 @@ export interface ExchangeResponse {
   data: {
     couponCode: string;
     pointsCost: number;
-    newStageUnlocked?: boolean;
+    newBalance: number;
+    stage2Unlocked: boolean;
+    stageUnlockMessage?: string;
+    itemSoldOut: boolean;
+    newStageUnlocked?: boolean; // 保持向后兼容
   };
 }
 

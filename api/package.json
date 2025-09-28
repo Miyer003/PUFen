@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
+    "run:ts": "tsx",
     "start": "node dist/server.js",
     "coupon:add": "tsx src/scripts/coupon-cli.ts add",
     "coupon:list": "tsx src/scripts/coupon-cli.ts list",
