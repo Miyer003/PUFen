@@ -29,6 +29,8 @@ Base URLs:
 
 - HTTP Authentication, scheme: bearer
 
+- HTTP Authentication, scheme: bearer
+
 # 认证
 
 ## POST 用户注册
@@ -41,8 +43,8 @@ POST /auth/register
 
 ```json
 {
-  "username": "35marblue",
-  "phone": "15617612681",
+  "username": "hlk",
+  "phone": "13950261469",
   "password": "333777"
 }
 ```
@@ -440,7 +442,7 @@ POST /signin/makeup
 
 ```json
 {
-  "date": "2019-08-24",
+  "date": "2025-09-23",
   "method": "points"
 }
 ```
@@ -449,7 +451,7 @@ POST /signin/makeup
 
 |名称|位置|类型|必选|说明|
 |---|---|---|---|---|
-|body|body|[MakeUpRequest](#schemamakeuprequest)| 是 |none|
+|body|body|[MakeUpRequest](#schemamakeuprequest)| 否 |none|
 
 > 返回示例
 
@@ -508,7 +510,7 @@ POST /teams
 
 ```json
 {
-  "name": "string"
+  "name": "三无学习机"
 }
 ```
 
@@ -516,7 +518,7 @@ POST /teams
 
 |名称|位置|类型|必选|说明|
 |---|---|---|---|---|
-|body|body|object| 是 |none|
+|body|body|object| 否 |none|
 |» name|body|string| 是 |none|
 
 > 返回示例
@@ -1024,6 +1026,8 @@ GET /rewards
 |---|---|---|---|---|
 |stage|query|integer| 否 |阶段筛选|
 |isLimited|query|boolean| 否 |none|
+|page|query|integer| 否 |none|
+|limit|query|integer| 否 |none|
 
 #### 枚举值
 
@@ -1119,7 +1123,7 @@ POST /rewards/exchange
 
 ```json
 {
-  "rewardItemId": "0e4a4644-7d75-4d9d-8c9c-d029d4d9b698"
+  "rewardItemId": "ab78a487-ee11-4779-a0eb-51d43f905e3f"
 }
 ```
 
@@ -1127,7 +1131,7 @@ POST /rewards/exchange
 
 |名称|位置|类型|必选|说明|
 |---|---|---|---|---|
-|body|body|[ExchangeRequest](#schemaexchangerequest)| 是 |none|
+|body|body|[ExchangeRequest](#schemaexchangerequest)| 否 |none|
 
 > 返回示例
 
@@ -1428,6 +1432,70 @@ GET /records/exchange
 |» message|string|false|none||none|
 
 # 数据模型
+
+<h2 id="tocS_UnauthorizedError">UnauthorizedError</h2>
+
+<a id="schemaunauthorizederror"></a>
+<a id="schema_UnauthorizedError"></a>
+<a id="tocSunauthorizederror"></a>
+<a id="tocsunauthorizederror"></a>
+
+```json
+{}
+
+```
+
+### 属性
+
+*None*
+
+<h2 id="tocS_ForbiddenError">ForbiddenError</h2>
+
+<a id="schemaforbiddenerror"></a>
+<a id="schema_ForbiddenError"></a>
+<a id="tocSforbiddenerror"></a>
+<a id="tocsforbiddenerror"></a>
+
+```json
+{}
+
+```
+
+### 属性
+
+*None*
+
+<h2 id="tocS_NotFoundError">NotFoundError</h2>
+
+<a id="schemanotfounderror"></a>
+<a id="schema_NotFoundError"></a>
+<a id="tocSnotfounderror"></a>
+<a id="tocsnotfounderror"></a>
+
+```json
+{}
+
+```
+
+### 属性
+
+*None*
+
+<h2 id="tocS_ValidationError">ValidationError</h2>
+
+<a id="schemavalidationerror"></a>
+<a id="schema_ValidationError"></a>
+<a id="tocSvalidationerror"></a>
+<a id="tocsvalidationerror"></a>
+
+```json
+{}
+
+```
+
+### 属性
+
+*None*
 
 <h2 id="tocS_SignInConfig">SignInConfig</h2>
 

@@ -29,10 +29,10 @@ export class RewardItem {
     @Column({ type: 'int' })
     stage: number; // 所属阶段（1/2）
     
-    @Column({ type: 'int' })
+    @Column({ type: 'int', default: 7 })
     validityDays: number; // 有效期
 
-    @Column({ type: 'boolean' })
+    @Column({ type: 'boolean', default: true })
     isLimited: boolean;
 
     @CreateDateColumn({ type: 'datetime' })
