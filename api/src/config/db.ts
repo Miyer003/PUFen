@@ -5,6 +5,7 @@ import { SignInConfig } from '../entities/SignInConfig';
 import { SignInRecord } from '../entities/SignInRecord';
 import { Team } from '../entities/Team';
 import { TeamMember } from '../entities/TeamMember';
+import { TeamRecord } from '../entities/TeamRecord';
 import { RewardItem } from '../entities/RewardItem';
 import { RewardRecord } from '../entities/RewardRecord';
 import { PointsTransaction } from '../entities/PointsTransaction';
@@ -22,6 +23,7 @@ export const AppDataSource = new DataSource({
         SignInRecord,
         Team,
         TeamMember,
+        TeamRecord,
         RewardItem,
         RewardRecord,
         PointsTransaction,

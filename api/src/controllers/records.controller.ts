@@ -5,6 +5,7 @@ import { PointsAccount } from "../entities/PointsAccount";
 import { PointsTransaction } from "../entities/PointsTransaction";
 import { RewardItem } from "../entities/RewardItem";
 import { RewardRecord } from "../entities/RewardRecord";
+import { TeamRecord } from "../entities/TeamRecord";
 
 export const recordsRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.get(
@@ -124,6 +125,70 @@ export const recordsRoutes: FastifyPluginAsync = async (fastify) => {
                         limit: limitNum,
                         total,
                         totalPages: Math.ceil(total / limit),
+                    }
+                }
+            });
+        }
+    );
+
+    // 团队记录接口
+    fastify.get(
+        '/records/team',
+        {
+            preHandler: authHook
+        },
+        async (req, reply) => {
+            const userId = req.user!.id;
+            const { status, page = 1, limit = 20 } = req.query as {
+                status?: 'active' | 'completed' | 'expired';
+                page?: number;
+                limit?: number;
+            };
+            const pageNum = Number(page);
+            const limitNum = Number(limit);
+
+            const repo = AppDataSource.getRepository(TeamRecord);
+            const result = repo.createQueryBuilder('tr')
+                .where('tr.userId = :userId', { userId })
+                .orderBy('tr.completedAt', 'DESC')
+                .skip((pageNum - 1) * limitNum)
+                .take(limitNum);
+
+            if (status) result.andWhere('tr.status = :status', { status });
+
+            const [records, total] = await result.getManyAndCount();
+            
+            if (records.length === 0) {
+                return reply.send({
+                    success: true,
+                    data: {
+                        records: [],
+                        pagination: { page: pageNum, limit: limitNum, total: 0, totalPages: 0 },
+                    },
+                    message: '暂无团队记录'
+                });
+            }
+
+            return reply.send({
+                success: true,
+                data: {
+                    records: records.map(record => ({
+                        id: record.id,
+                        teamId: record.teamId,
+                        teamName: record.teamName,
+                        role: record.role,
+                        pointsEarned: record.pointsEarned,
+                        isNewUser: record.isNewUser,
+                        status: record.status,
+                        memberCount: record.memberCount,
+                        createdAt: record.createdAt,
+                        completedAt: record.completedAt
+                    })),
+                    pagination: {
+                        page: pageNum,
+                        limit: limitNum,
+                        total,
+                        totalPages: Math.ceil(total / limitNum),
                     }
                 }
             });

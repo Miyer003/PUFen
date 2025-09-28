@@ -4,7 +4,6 @@ import { Tabs, Empty, message } from 'antd';
 import { LeftOutlined } from '@ant-design/icons';
 import styled from 'styled-components';
 import dayjs from 'dayjs';
-import { teamService } from '@/services/team';
 import { rewardService } from '@/services/reward';
 import { apiClient } from '@/services/api';
 
@@ -190,12 +189,11 @@ const Records: React.FC = () => {
           break;
           
         case 'team':
-          const teamRes = await teamService.getMyTeams({
-            page: 1,
-            limit: 20
+          const teamRes = await apiClient.get('/records/team', {
+            params: { page: 1, limit: 20 }
           });
           if (teamRes.success && teamRes.data) {
-            setTeamRecords(teamRes.data.records);
+            setTeamRecords(teamRes.data.records || teamRes.data);
           }
           break;
           
@@ -238,17 +236,19 @@ const Records: React.FC = () => {
   const renderTeamRecord = (record: any) => (
     <RecordItem key={record.id}>
       <div className="record-header">
-        <div className="record-title">积分瓜分</div>
+        <div className="record-title">
+          团队：{record.team?.name || '未知团队'} ({record.role === 'captain' ? '队长' : '队员'})
+        </div>
         <div className="points-change positive">
           +{record.pointsEarned}积分
         </div>
       </div>
       <div className="record-details">
         <div className="record-time">
-          {dayjs(record.joinedAt).format('MM/DD HH:mm')}
+          {dayjs(record.completedAt).format('MM/DD HH:mm')}
         </div>
         <div className="record-balance">
-          剩余{record.pointsEarned}
+          {record.role === 'captain' ? '队长奖励' : '队员奖励'}
         </div>
       </div>
     </RecordItem>

@@ -3,6 +3,7 @@ import { authHook } from "../middleware/auth.hook";
 import { AppDataSource } from "../config/db";
 import { Team } from "../entities/Team";
 import { TeamMember } from "../entities/TeamMember";
+import { TeamRecord } from "../entities/TeamRecord";
 import { User } from "../entities/User";
 import { PointsAccount } from "../entities/PointsAccount";
 import { PointsTransaction } from "../entities/PointsTransaction";
@@ -54,6 +55,31 @@ export const teamRoutes: FastifyPluginAsync = async (fastify) => {
 
         console.log(`[积分系统] 用户 ${userId} 获得 ${points} 积分: ${description}，余额 ${balanceBefore} → ${account.balance}`);
         return account.balance;
+    };
+
+    // 创建团队记录的辅助函数
+    const createTeamRecord = async (team: Team, members: TeamMember[]) => {
+        const teamRecordRepo = AppDataSource.getRepository(TeamRecord);
+        const records: TeamRecord[] = [];
+
+        for (const member of members) {
+            const record = teamRecordRepo.create({
+                userId: member.userId,
+                teamId: team.id,
+                teamName: team.name,
+                role: member.role,
+                pointsEarned: member.pointsEarned,
+                isNewUser: member.isNewUser,
+                status: team.status,
+                memberCount: members.length,
+                completedAt: new Date()
+            });
+            records.push(record);
+        }
+
+        await teamRecordRepo.save(records);
+        console.log(`[团队系统] 为团队 "${team.name}" 创建了 ${records.length} 条团队记录`);
+        return records;
     };
 
     // 创建团队
@@ -201,7 +227,7 @@ export const teamRoutes: FastifyPluginAsync = async (fastify) => {
             if (currentMemberCount >= 3) {
                 return reply.status(400).send({
                     success: false,
-                    message: '团队已满员'
+                    message: '团队已满员，无法加入'
                 });
             }
 
@@ -253,8 +279,18 @@ export const teamRoutes: FastifyPluginAsync = async (fastify) => {
                 team.id
             );
 
-            // 获取更新后的完整团队信息
+            // 检查团队是否满员，如果满员则自动设置为完成状态
             const updatedMemberCount = currentMemberCount + 1;
+            if (updatedMemberCount >= 3) {
+                team.status = 'completed';
+                await teamRepo.save(team);
+                console.log(`[团队系统] 团队 "${team.name}" 已满员，自动设置为完成状态`);
+                
+                // 创建团队记录
+                const allMembers = await memberRepo.find({ where: { teamId: team.id } });
+                await createTeamRecord(team, allMembers);
+            }
+
             const remainingTime = Math.max(0, Math.floor((team.endTime.getTime() - Date.now()) / 1000));
 
             console.log(`[团队系统] 用户 ${userId} 成功加入团队 "${team.name}"`);
@@ -293,30 +329,47 @@ export const teamRoutes: FastifyPluginAsync = async (fastify) => {
             const teamRepo = AppDataSource.getRepository(Team);
             const memberRepo = AppDataSource.getRepository(TeamMember);
 
-            // 查找用户作为队长的活跃团队
+            // 查找用户作为队长的团队（包括已完成和过期的）
             const member = await memberRepo
                 .createQueryBuilder('member')
                 .leftJoinAndSelect('member.team', 'team')
                 .where('member.userId = :userId', { userId })
                 .andWhere('member.role = :role', { role: 'captain' })
-                .andWhere('team.status = :status', { status: 'active' })
-                .andWhere('team.endTime > :now', { now: new Date() })
+                .orderBy('team.endTime', 'DESC') // 按结束时间降序排列
                 .getOne();
 
             if (!member || !member.team) {
                 return reply.status(404).send({
                     success: false,
-                    message: '您没有活跃的团队或不是队长'
+                    message: '您没有团队或不是队长'
                 });
             }
 
             const team = member.team;
             const now = new Date();
             
+            // 只有团队已完成、已过期或已经超过3小时的才能刷新创建新团队
+            if (team.status === 'active' && team.endTime.getTime() > now.getTime()) {
+                // 检查是否满员
+                const currentMemberCount = await memberRepo.count({ where: { teamId: team.id } });
+                if (currentMemberCount < 3) {
+                    const remainingMinutes = Math.ceil((team.endTime.getTime() - now.getTime()) / (60 * 1000));
+                    return reply.status(400).send({
+                        success: false,
+                        message: `团队还有 ${remainingMinutes} 分钟有效期且未满员，无法创建新团队`
+                    });
+                }
+                // 如果满员，自动设置为完成状态
+                team.status = 'completed';
+                await teamRepo.save(team);
+            }
+            
             // 生成新的邀请码并重新设定3小时有效期
             const newInviteCode = generateInviteCode();
             const newEndTime = new Date(now.getTime() + 3 * 60 * 60 * 1000);
 
+            // 重置团队为活跃状态
+            team.status = 'active';
             team.inviteCode = newInviteCode;
             team.endTime = newEndTime;
             await teamRepo.save(team);
@@ -372,11 +425,27 @@ export const teamRoutes: FastifyPluginAsync = async (fastify) => {
 
             const remainingTime = Math.max(0, Math.floor((team.endTime.getTime() - Date.now()) / 1000));
             
-            // 如果团队已过期，更新状态
-            if (remainingTime === 0 && team.status === 'active') {
-                const teamRepo = AppDataSource.getRepository(Team);
-                team.status = 'expired';
-                await teamRepo.save(team);
+            // 检查团队状态，自动完成或过期
+            const teamRepo = AppDataSource.getRepository(Team);
+            let shouldUpdateStatus = false;
+            
+            if (team.status === 'active') {
+                // 如果团队已过期，更新为过期状态
+                if (remainingTime === 0) {
+                    team.status = 'expired';
+                    shouldUpdateStatus = true;
+                    console.log(`[团队系统] 团队 "${team.name}" 已过期，自动设置为过期状态`);
+                }
+                // 如果团队满员，更新为完成状态
+                else if (allMembers.length >= 3) {
+                    team.status = 'completed';
+                    shouldUpdateStatus = true;
+                    console.log(`[团队系统] 团队 "${team.name}" 已满员，自动设置为完成状态`);
+                }
+                
+                if (shouldUpdateStatus) {
+                    await teamRepo.save(team);
+                }
             }
 
             return reply.send({

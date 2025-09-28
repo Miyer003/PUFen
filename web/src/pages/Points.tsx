@@ -332,76 +332,170 @@ const CouponGrid = styled.div`
   gap: 12px;
 `;
 
-const CouponItem = styled.div<{ isLocked?: boolean }>`
-  background: white;
-  border: 2px dashed ${props => props.isLocked ? '#ccc' : '#ff6b6b'};
-  border-radius: 12px;
-  padding: 16px;
+const CouponItem = styled.div<{ isLocked?: boolean; stage?: number }>`
+  background: ${props => {
+    if (props.isLocked) {
+      return 'linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%)';
+    }
+    if (props.stage === 2) {
+      return 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    }
+    return 'linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%)';
+  }};
+  border: none;
+  border-radius: 16px;
+  padding: 20px;
   text-align: center;
   position: relative;
-  opacity: ${props => props.isLocked ? 0.6 : 1};
+  box-shadow: ${props => props.isLocked 
+    ? '0 4px 12px rgba(0, 0, 0, 0.1)' 
+    : '0 8px 24px rgba(255, 107, 107, 0.3)'};
+  transition: all 0.3s ease;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: ${props => props.isLocked 
+      ? 'none' 
+      : 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%)'};
+    animation: ${props => props.isLocked ? 'none' : 'shimmer 3s ease-in-out infinite'};
+  }
+  
+  @keyframes shimmer {
+    0%, 100% { transform: scale(0.8) rotate(0deg); opacity: 0.3; }
+    50% { transform: scale(1.2) rotate(180deg); opacity: 0.6; }
+  }
+  
+  &:hover {
+    transform: ${props => props.isLocked ? 'none' : 'translateY(-4px)'};
+    box-shadow: ${props => props.isLocked 
+      ? '0 4px 12px rgba(0, 0, 0, 0.1)' 
+      : '0 12px 32px rgba(255, 107, 107, 0.4)'};
+  }
   
   .amount {
-    font-size: 24px;
-    font-weight: bold;
-    color: ${props => props.isLocked ? '#999' : '#ff6b6b'};
-    margin-bottom: 8px;
+    font-size: 32px;
+    font-weight: 900;
+    color: ${props => props.isLocked ? '#999' : 'white'};
+    margin-bottom: 12px;
+    text-shadow: ${props => props.isLocked ? 'none' : '0 2px 4px rgba(0, 0, 0, 0.3)'};
+    position: relative;
+    z-index: 1;
   }
   
   .condition {
-    background: ${props => props.isLocked ? '#ccc' : '#ff6b6b'};
-    color: white;
-    font-size: 12px;
-    padding: 4px 8px;
-    border-radius: 12px;
-    margin-bottom: 12px;
+    background: ${props => {
+      if (props.isLocked) return 'rgba(0, 0, 0, 0.1)';
+      return 'rgba(255, 255, 255, 0.2)';
+    }};
+    color: ${props => props.isLocked ? '#666' : 'white'};
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 20px;
+    margin-bottom: 16px;
+    backdrop-filter: blur(4px);
+    border: 1px solid ${props => props.isLocked ? 'transparent' : 'rgba(255, 255, 255, 0.3)'};
+    position: relative;
+    z-index: 1;
   }
   
   .title {
-    font-size: 14px;
-    color: ${props => props.isLocked ? '#999' : '#333'};
-    margin-bottom: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: ${props => props.isLocked ? '#999' : 'white'};
+    margin-bottom: 12px;
+    position: relative;
+    z-index: 1;
   }
   
   .points {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
-    color: ${props => props.isLocked ? '#999' : '#666'};
-    font-size: 12px;
-    margin-bottom: 8px;
+    gap: 6px;
+    color: ${props => props.isLocked ? '#999' : 'rgba(255, 255, 255, 0.9)'};
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 16px;
+    position: relative;
+    z-index: 1;
   }
   
   .lock-overlay {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    top: 12px;
+    right: 12px;
     background: rgba(0, 0, 0, 0.7);
     color: white;
-    padding: 2px 6px;
-    border-radius: 4px;
+    padding: 4px 8px;
+    border-radius: 12px;
     font-size: 10px;
-    font-weight: 500;
+    font-weight: 600;
+    z-index: 2;
+    backdrop-filter: blur(4px);
   }
   
   .exchange-btn {
-    background: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 16px;
-    padding: 6px 16px;
-    font-size: 12px;
-    cursor: pointer;
+    background: ${props => props.isLocked 
+      ? '#ccc' 
+      : 'linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%)'};
+    color: ${props => props.isLocked ? '#666' : 'white'};
+    border: 2px solid ${props => props.isLocked ? 'transparent' : 'rgba(255, 255, 255, 0.3)'};
+    border-radius: 20px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: ${props => props.isLocked ? 'not-allowed' : 'pointer'};
+    transition: all 0.3s ease;
+    backdrop-filter: blur(4px);
+    position: relative;
+    z-index: 1;
     
     &:hover {
-      background: #45a049;
+      background: ${props => props.isLocked 
+        ? '#ccc' 
+        : 'linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.2) 100%)'};
+      transform: ${props => props.isLocked ? 'none' : 'scale(1.05)'};
     }
     
     &:disabled {
       background: #ccc;
       cursor: not-allowed;
+      opacity: 0.6;
     }
+  }
+  
+  .stage-badge {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: linear-gradient(135deg, #ffd700 0%, #ffb347 100%);
+    color: #8b4513;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 700;
+    z-index: 2;
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+  }
+  
+  .stock-warning {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    background: rgba(255, 152, 0, 0.9);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 600;
+    z-index: 2;
   }
 `;
 
@@ -446,8 +540,12 @@ const Points: React.FC = () => {
       
       // 加载rewards数据
       await loadRewards();
-    } catch (error) {
-      message.error('加载数据失败');
+    } catch (error: any) {
+      console.error('加载数据失败:', error);
+      // 只有真正的网络错误才提示用户
+      if (error?.message && !error.message.includes('暂无')) {
+        message.error('网络连接失败，请检查网络后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -463,9 +561,16 @@ const Points: React.FC = () => {
         setRewardItems(items);
         setCurrentStage(response.data.currentStage || 1);
         setStage2Unlocked(response.data.stage2Unlocked || false);
+      } else if (response.message && !response.message.includes('暂无')) {
+        // 只有真正的错误才显示错误消息，暂无记录不显示
+        console.warn('加载奖励商品:', response.message);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('加载商品列表失败:', error);
+      // 只有网络错误或其他真正的错误才提示用户
+      if (error?.code !== 'NO_DATA') {
+        message.error('网络错误，请稍后重试');
+      }
     } finally {
       setRewardsLoading(false);
     }
@@ -809,33 +914,48 @@ const Points: React.FC = () => {
                 const userPoints = pointsAccount?.balance || 0;
                 const isOutOfStock = item.stock <= 0;
                 const isInsufficientPoints = userPoints < item.pointsCost;
-                const isLocked = !item.isUnlocked; // 使用徎端返回的锁定状态
+                const isLocked = !item.isUnlocked; // 使用后端返回的锁定状态
                 const canExchange = item.canExchange && !loading; // 使用后端返回的可兑换状态
                 
                 let buttonText = '兑换';
-                let buttonColor = '#4CAF50';
-                let textColor = 'white';
+                let buttonColor = 'transparent';
                 
                 if (loading) {
                   buttonText = '兑换中...';
                 } else if (isLocked) {
-                  buttonText = '未解锁';
-                  buttonColor = '#9e9e9e';
+                  buttonText = '🔒 未解锁';
+                  buttonColor = '#ccc';
                 } else if (isOutOfStock) {
                   buttonText = '已兑完';
-                  buttonColor = '#9e9e9e';
+                  buttonColor = '#ccc';
                 } else if (isInsufficientPoints) {
                   buttonText = '积分不够';
-                  buttonColor = '#ff5722';
+                  buttonColor = 'rgba(255, 255, 255, 0.1)';
                 }
 
                 return (
-                  <CouponItem key={item.id} isLocked={isLocked}>
+                  <CouponItem key={item.id} isLocked={isLocked} stage={item.stage}>
+                    {/* 阶段徽章 */}
+                    {item.stage === 2 && (
+                      <div className="stage-badge">
+                        ⭐ 第二阶段
+                      </div>
+                    )}
+                    
+                    {/* 锁定标识 */}
                     {isLocked && (
                       <div className="lock-overlay">
                         🔒 锁定
                       </div>
                     )}
+                    
+                    {/* 库存警告 */}
+                    {!isLocked && item.stock <= 10 && item.stock > 0 && (
+                      <div className="stock-warning">
+                        仅剩{item.stock}件
+                      </div>
+                    )}
+                    
                     <div className="amount">¥{item.couponValue}</div>
                     <div className="condition">满{item.conditionAmount}元可用</div>
                     <div className="title">{item.name}</div>
@@ -847,56 +967,26 @@ const Points: React.FC = () => {
                       onClick={() => canExchange ? handleExchange(item) : null}
                       disabled={!canExchange}
                       style={{
-                        background: buttonColor,
-                        color: textColor,
-                        opacity: !canExchange ? 0.8 : 1,
-                        cursor: !canExchange ? 'not-allowed' : 'pointer',
-                        border: 'none',
-                        borderRadius: '6px',
-                        padding: '8px 16px',
-                        fontSize: '14px',
-                        fontWeight: '500'
+                        background: buttonColor !== 'transparent' ? buttonColor : undefined,
                       }}
                     >
                       {buttonText}
                     </button>
                     
-                    {/* 库存提示 */}
-                    {!isLocked && item.stock <= 10 && item.stock > 0 && (
-                      <div style={{ fontSize: '10px', color: '#ff9800', marginTop: '4px', fontWeight: '500' }}>
-                        仅剩{item.stock}件
-                      </div>
-                    )}
-                    
                     {/* 锁定原因提示 */}
                     {isLocked && item.lockReason && (
                       <div style={{ 
                         fontSize: '10px', 
-                        color: '#999', 
-                        marginTop: '4px', 
+                        color: 'rgba(255, 255, 255, 0.7)', 
+                        marginTop: '8px', 
                         fontWeight: '500',
-                        background: 'rgba(0, 0, 0, 0.05)',
-                        padding: '2px 6px',
-                        borderRadius: '3px',
-                        display: 'inline-block'
+                        background: 'rgba(0, 0, 0, 0.2)',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        position: 'relative',
+                        zIndex: 1
                       }}>
                         {item.lockReason}
-                      </div>
-                    )}
-                    
-                    {/* 阶段标识 */}
-                    {item.stage === 2 && (
-                      <div style={{ 
-                        fontSize: '10px', 
-                        color: isLocked ? '#999' : '#ff6b6b', 
-                        marginTop: '4px', 
-                        fontWeight: '500',
-                        background: isLocked ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 107, 107, 0.1)',
-                        padding: '2px 6px',
-                        borderRadius: '3px',
-                        display: 'inline-block'
-                      }}>
-                        ⭐ 第二阶段
                       </div>
                     )}
                   </CouponItem>

@@ -609,8 +609,12 @@ export default function InviteFriend() {
       } else {
         setHasTeam(false);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('加载团队信息失败:', error);
+      // 只有真正的网络错误才提示用户
+      if (error?.message && !error.message.includes('暂无')) {
+        message.error('网络连接失败，请检查网络');
+      }
       setHasTeam(false);
     } finally {
       setLoading(false);
@@ -644,9 +648,13 @@ export default function InviteFriend() {
       } else {
         message.error(response.message || '刷新失败');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('刷新邀请码失败:', error);
-      message.error('刷新失败，请稍后重试');
+      if (error?.response?.status === 400) {
+        message.error(error.response.data.message || '操作失败');
+      } else {
+        message.error('网络连接失败，请检查网络');
+      }
     } finally {
       setLoading(false);
     }
@@ -671,9 +679,13 @@ export default function InviteFriend() {
       } else {
         message.error(response.message || '创建失败');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('创建团队失败:', error);
-      message.error('创建失败，请稍后重试');
+      if (error?.response?.status === 400) {
+        message.error(error.response.data.message || '创建失败');
+      } else {
+        message.error('网络连接失败，请检查网络');
+      }
     } finally {
       setLoading(false);
     }
@@ -697,9 +709,13 @@ export default function InviteFriend() {
       } else {
         message.error(response.message || '加入失败');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('加入团队失败:', error);
-      message.error('加入失败，请稍后重试');
+      if (error?.response?.status === 400) {
+        message.error(error.response.data.message || '加入失败');
+      } else {
+        message.error('网络连接失败，请检查网络');
+      }
     } finally {
       setLoading(false);
     }
