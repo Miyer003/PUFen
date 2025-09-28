@@ -22,7 +22,14 @@ interface AuthState {
   initialize: () => void;
 }
 
-export const useAuthStore = create<AuthState>()(  persist(    (set) => ({      user: null,      pointsAccount: null,      token: null,      isAuthenticated: false,      loading: true, // 初始化时设置为true，避免闪烁
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      user: null,
+      pointsAccount: null,
+      token: null,
+      isAuthenticated: false,
+      loading: true, // 初始化时设置为true，避免闪烁
 
       login: (token: string, user: User) => {
         authService.setToken(token);
@@ -30,6 +37,7 @@ export const useAuthStore = create<AuthState>()(  persist(    (set) => ({      u
           user,
           token,
           isAuthenticated: true,
+          loading: false, // 登录完成后设置loading为false
         });
       },
 
@@ -92,12 +100,18 @@ export const useAuthStore = create<AuthState>()(  persist(    (set) => ({      u
       },
 
       initialize: () => {
+        console.log('Auth store initialize 开始');
         const token = authService.getToken();
-        set({
+        console.log('从localStorage获取token:', token ? `${token.substring(0, 10)}...` : 'null');
+        
+        const newState = {
           isAuthenticated: !!token,
           token,
-          loading: false
-        });
+          loading: false // 重要：初始化完成后设置loading为false
+        };
+        
+        console.log('Auth store 设置新状态:', newState);
+        set(newState);
       },
     }),
     {
@@ -108,11 +122,8 @@ export const useAuthStore = create<AuthState>()(  persist(    (set) => ({      u
         isAuthenticated: state.isAuthenticated,
       }),
       onRehydrateStorage: () => (state) => {
-        // 恢复状态后立即检查token并设置认证状态
+        // 恢复状态后设置loading为false，避免无限加载
         if (state) {
-          const token = authService.getToken();
-          state.isAuthenticated = !!token;
-          state.token = token;
           state.loading = false;
         }
       },

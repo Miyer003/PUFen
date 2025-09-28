@@ -26,6 +26,31 @@ export const teamService = {
     return apiClient.post(`/teams/${teamId}/join`);
   },
 
+  // 通过邀请码加入团队
+  async joinTeamByCode(inviteCode: string): Promise<ApiResponse<{
+    pointsEarned: number;
+    teamInfo: Team;
+    memberInfo: TeamMember;
+  }>> {
+    return apiClient.post('/teams/join-by-code', { inviteCode });
+  },
+
+  // 获取我的活跃团队
+  async getMyActiveTeam(): Promise<ApiResponse<{
+    team: Team & { memberCount: number; remainingTime: number };
+    myRole: 'captain' | 'member';
+    members: Array<{
+      id: string;
+      username: string;
+      role: 'captain' | 'member';
+      pointsEarned: number;
+      isNewUser: boolean;
+      joinedAt: string;
+    }>;
+  } | null>> {
+    return apiClient.get('/teams/my-active');
+  },
+
   // 获取我的团队记录
   async getMyTeams(params?: {
     page?: number;

@@ -9,8 +9,16 @@ interface ProtectedRouteProps {
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { isAuthenticated, token, loading } = useAuthStore();
   
+  console.log('ProtectedRoute 状态检查:', { 
+    isAuthenticated, 
+    hasToken: !!token, 
+    loading,
+    tokenValue: token ? `${token.substring(0, 10)}...` : 'null'
+  });
+  
   // 如果还在加载认证状态，显示加载界面
   if (loading) {
+    console.log('ProtectedRoute: 显示加载界面');
     return (
       <div style={{
         display: 'flex',
@@ -26,9 +34,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   
   // 如果没有token或未认证，重定向到登录页
   if (!token || !isAuthenticated) {
+    console.log('ProtectedRoute: 重定向到登录页');
     return <Navigate to="/login" replace />;
   }
 
+  console.log('ProtectedRoute: 渲染受保护的内容');
   return <>{children}</>;
 };
 

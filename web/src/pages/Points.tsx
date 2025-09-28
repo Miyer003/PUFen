@@ -8,10 +8,8 @@ import {
   GiftOutlined,
 } from '@ant-design/icons';
 import styled from 'styled-components';
-import { useAuthStore } from '@/store/auth';
 import { usePointsStore } from '@/store/points';
 import { pointsService } from '@/services/points';
-import { teamService } from '@/services/team';
 import { rewardService } from '@/services/reward';
 import { RewardItem } from '@/types';
 import { PullToRefresh, SafeArea } from '../components/mobile';
@@ -334,23 +332,24 @@ const CouponGrid = styled.div`
   gap: 12px;
 `;
 
-const CouponItem = styled.div`
+const CouponItem = styled.div<{ isLocked?: boolean }>`
   background: white;
-  border: 2px dashed #ff6b6b;
+  border: 2px dashed ${props => props.isLocked ? '#ccc' : '#ff6b6b'};
   border-radius: 12px;
   padding: 16px;
   text-align: center;
   position: relative;
+  opacity: ${props => props.isLocked ? 0.6 : 1};
   
   .amount {
     font-size: 24px;
     font-weight: bold;
-    color: #ff6b6b;
+    color: ${props => props.isLocked ? '#999' : '#ff6b6b'};
     margin-bottom: 8px;
   }
   
   .condition {
-    background: #ff6b6b;
+    background: ${props => props.isLocked ? '#ccc' : '#ff6b6b'};
     color: white;
     font-size: 12px;
     padding: 4px 8px;
@@ -360,7 +359,7 @@ const CouponItem = styled.div`
   
   .title {
     font-size: 14px;
-    color: #333;
+    color: ${props => props.isLocked ? '#999' : '#333'};
     margin-bottom: 8px;
   }
   
@@ -369,9 +368,21 @@ const CouponItem = styled.div`
     align-items: center;
     justify-content: center;
     gap: 4px;
-    color: #666;
+    color: ${props => props.isLocked ? '#999' : '#666'};
     font-size: 12px;
     margin-bottom: 8px;
+  }
+  
+  .lock-overlay {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 500;
   }
   
   .exchange-btn {
@@ -396,11 +407,12 @@ const CouponItem = styled.div`
 
 const Points: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
   const { pointsAccount, weeklyConfig, signInStatus } = usePointsStore();
   const [loading, setLoading] = useState(false);
   const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
   const [rewardsLoading, setRewardsLoading] = useState(false);
+  const [currentStage, setCurrentStage] = useState(1);
+  const [stage2Unlocked, setStage2Unlocked] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -449,6 +461,8 @@ const Points: React.FC = () => {
         // 实际API返回的数据结构是 { items: [], currentStage: 1, stage2Unlocked: false }
         const items = response.data.items || [];
         setRewardItems(items);
+        setCurrentStage(response.data.currentStage || 1);
+        setStage2Unlocked(response.data.stage2Unlocked || false);
       }
     } catch (error) {
       console.error('加载商品列表失败:', error);
@@ -482,20 +496,6 @@ const Points: React.FC = () => {
       message.error(error?.message || '签到失败');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleCreateTeam = async () => {
-    try {
-      const teamName = `${user?.username}的团队`;
-      const response = await teamService.createTeam({ name: teamName });
-      
-      if (response.success && response.data) {
-        message.success(`团队创建成功！获得${response.data.pointsEarned}积分`);
-        loadData();
-      }
-    } catch (error: any) {
-      message.error(error?.message || '创建团队失败');
     }
   };
 
@@ -758,12 +758,42 @@ const Points: React.FC = () => {
           {Array.from({ length: 7 }, (_, i) => renderDayItem(i))}
         </SignInCalendar>
 
-        <InviteSection onClick={handleCreateTeam}>
+        <InviteSection onClick={() => navigate('/invite')}>
           邀请好友瓜分100积分
         </InviteSection>
 
         <ExchangeSection>
           <div className="section-title">积分兑换区</div>
+          
+          {/* 阶段提示 */}
+          <div style={{ 
+            background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', 
+            color: 'white', 
+            padding: '12px 16px', 
+            borderRadius: '8px', 
+            marginBottom: '16px',
+            fontSize: '13px',
+            textAlign: 'center'
+          }}>
+            {currentStage === 1 && !stage2Unlocked && (
+              <>
+                <div style={{ fontWeight: '600', marginBottom: '4px' }}>🎯 第一阶段商品</div>
+                <div style={{ opacity: 0.9 }}>兑换完第一阶段全部商品解锁更多好礼！</div>
+              </>
+            )}
+            {currentStage === 1 && stage2Unlocked && (
+              <>
+                <div style={{ fontWeight: '600', marginBottom: '4px' }}>🎉 恭喜解锁第二阶段！</div>
+                <div style={{ opacity: 0.9 }}>更多精彩商品等你来兑换</div>
+              </>
+            )}
+            {currentStage === 2 && (
+              <>
+                <div style={{ fontWeight: '600', marginBottom: '4px' }}>⭐ 第二阶段商品</div>
+                <div style={{ opacity: 0.9 }}>更高价值的商品等你兑换</div>
+              </>
+            )}
+          </div>
           
           <CouponGrid>
             {rewardsLoading ? (
@@ -775,32 +805,103 @@ const Points: React.FC = () => {
                 暂无可兑换商品
               </div>
             ) : (
-              rewardItems.map((item) => (
-                <CouponItem key={item.id}>
-                  <div className="amount">¥{item.couponValue}</div>
-                  <div className="condition">满{item.conditionAmount}元可用</div>
-                  <div className="title">{item.name}</div>
-                  <div className="points">
-                    <span>🪙 {item.pointsCost}积分</span>
-                  </div>
-                  <button 
-                    className="exchange-btn"
-                    onClick={() => handleExchange(item)}
-                    disabled={loading || (pointsAccount?.balance || 0) < item.pointsCost || item.stock <= 0}
-                    style={{
-                      opacity: (pointsAccount?.balance || 0) < item.pointsCost || item.stock <= 0 ? 0.5 : 1,
-                      cursor: loading || (pointsAccount?.balance || 0) < item.pointsCost || item.stock <= 0 ? 'not-allowed' : 'pointer'
-                    }}
-                  >
-                    {item.stock <= 0 ? '缺货' : loading ? '兑换中...' : '兑换'}
-                  </button>
-                  {item.stock <= 10 && item.stock > 0 && (
-                    <div style={{ fontSize: '10px', color: '#ff6b6b', marginTop: '4px' }}>
-                      仅剩{item.stock}件
+              rewardItems.map((item) => {
+                const userPoints = pointsAccount?.balance || 0;
+                const isOutOfStock = item.stock <= 0;
+                const isInsufficientPoints = userPoints < item.pointsCost;
+                const isLocked = !item.isUnlocked; // 使用徎端返回的锁定状态
+                const canExchange = item.canExchange && !loading; // 使用后端返回的可兑换状态
+                
+                let buttonText = '兑换';
+                let buttonColor = '#4CAF50';
+                let textColor = 'white';
+                
+                if (loading) {
+                  buttonText = '兑换中...';
+                } else if (isLocked) {
+                  buttonText = '未解锁';
+                  buttonColor = '#9e9e9e';
+                } else if (isOutOfStock) {
+                  buttonText = '已兑完';
+                  buttonColor = '#9e9e9e';
+                } else if (isInsufficientPoints) {
+                  buttonText = '积分不够';
+                  buttonColor = '#ff5722';
+                }
+
+                return (
+                  <CouponItem key={item.id} isLocked={isLocked}>
+                    {isLocked && (
+                      <div className="lock-overlay">
+                        🔒 锁定
+                      </div>
+                    )}
+                    <div className="amount">¥{item.couponValue}</div>
+                    <div className="condition">满{item.conditionAmount}元可用</div>
+                    <div className="title">{item.name}</div>
+                    <div className="points">
+                      <span>🪙 {item.pointsCost}积分</span>
                     </div>
-                  )}
-                </CouponItem>
-              ))
+                    <button 
+                      className="exchange-btn"
+                      onClick={() => canExchange ? handleExchange(item) : null}
+                      disabled={!canExchange}
+                      style={{
+                        background: buttonColor,
+                        color: textColor,
+                        opacity: !canExchange ? 0.8 : 1,
+                        cursor: !canExchange ? 'not-allowed' : 'pointer',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '8px 16px',
+                        fontSize: '14px',
+                        fontWeight: '500'
+                      }}
+                    >
+                      {buttonText}
+                    </button>
+                    
+                    {/* 库存提示 */}
+                    {!isLocked && item.stock <= 10 && item.stock > 0 && (
+                      <div style={{ fontSize: '10px', color: '#ff9800', marginTop: '4px', fontWeight: '500' }}>
+                        仅剩{item.stock}件
+                      </div>
+                    )}
+                    
+                    {/* 锁定原因提示 */}
+                    {isLocked && item.lockReason && (
+                      <div style={{ 
+                        fontSize: '10px', 
+                        color: '#999', 
+                        marginTop: '4px', 
+                        fontWeight: '500',
+                        background: 'rgba(0, 0, 0, 0.05)',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        display: 'inline-block'
+                      }}>
+                        {item.lockReason}
+                      </div>
+                    )}
+                    
+                    {/* 阶段标识 */}
+                    {item.stage === 2 && (
+                      <div style={{ 
+                        fontSize: '10px', 
+                        color: isLocked ? '#999' : '#ff6b6b', 
+                        marginTop: '4px', 
+                        fontWeight: '500',
+                        background: isLocked ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 107, 107, 0.1)',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        display: 'inline-block'
+                      }}>
+                        ⭐ 第二阶段
+                      </div>
+                    )}
+                  </CouponItem>
+                );
+              })
             )}
           </CouponGrid>
         </ExchangeSection>

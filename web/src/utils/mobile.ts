@@ -302,3 +302,25 @@ export const onNetworkChange = (callback: (online: boolean) => void) => {
     window.removeEventListener('offline', handleOffline);
   };
 };
+
+/**
+ * 原生分享功能
+ */
+export const share = async (data: {
+  title?: string;
+  text?: string;
+  url?: string;
+}) => {
+  if (navigator.share) {
+    try {
+      await navigator.share(data);
+      return true;
+    } catch (error) {
+      console.error('Share failed:', error);
+      throw error;
+    }
+  } else {
+    // 如果不支持原生分享，抛出错误让调用者处理
+    throw new Error('Web Share API not supported');
+  }
+};

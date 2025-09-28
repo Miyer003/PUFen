@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Team } from './Team';
+import { User } from './User';
 
 @Entity()
 export class TeamMember {
@@ -15,6 +16,10 @@ export class TeamMember {
     @ManyToOne(() => Team)
     @JoinColumn({ name: 'teamId' })
     team!: Team
+
+    @ManyToOne(() => User)
+    @JoinColumn({ name: 'userId' })
+    user!: User
 
     @Column('varchar', { 
         length: 20

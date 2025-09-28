@@ -6,6 +6,7 @@ import { PointsAccount } from "../entities/PointsAccount";
 import { PointsTransaction } from "../entities/PointsTransaction";
 import { RewardRecord } from "../entities/RewardRecord";
 import { UserCoupon } from "../entities/UserCoupon";
+import { RewardStageService } from "../services/reward-stage.service";
 
 export const rewardRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.get(
@@ -15,85 +16,71 @@ export const rewardRoutes: FastifyPluginAsync = async (fastify) => {
         },
         async (req, reply) => {
             const userId = req.user!.id;
-            const { stage, isLimited, page = 1, limit = 20 } = req.query as {
-                stage?: 1 | 2,
-                isLimited?: boolean | string,
+            const { page = 1, limit = 20 } = req.query as {
                 page?: number,
                 limit?: number
             };
             const pageNum = Number(page);
             const limitNum = Number(limit);
-            
-            // SQLite Boolean 1/0 转换为 Boolean true/false
-            let isLimitedFilter: boolean | undefined = undefined;
-            if (isLimited !== undefined) {
-                if (typeof isLimited === 'string') {
-                    isLimitedFilter = isLimited === 'true';
-                } else {
-                    isLimitedFilter = Boolean(isLimited);
-                }
-            }
 
-            // 解锁阶段
-            const exchangedCount = await AppDataSource.getRepository(RewardRecord)
-                .createQueryBuilder('rr')
-                .where('rr.userId = :userId', {userId})
-                .getCount();
-            const unlockedStage = exchangedCount >= 3 ? 2 : 1;
-            const stageFilter = Number(stage) || unlockedStage;
-            if (Number(stage) && Number(stage) > unlockedStage) {
-                return reply.status(403).send({
-                    success: false,
-                    message: '该阶段尚未解锁'
-                });
-            }
-
+            // 获取所有奖励商品（包括锁定的第二阶段）
             const repo = AppDataSource.getRepository(RewardItem);
-            
-            let queryBuilder = repo.createQueryBuilder('item')
-                .where('item.stage = :stage', { stage: stageFilter })
-                .orderBy('item.pointsCost', 'ASC');
+            const [items, total] = await repo.findAndCount({
+                order: { stage: 'ASC', pointsCost: 'ASC' },
+                skip: (pageNum - 1) * limitNum,
+                take: limitNum
+            });
+
+            // 检查阶段解锁状态
+            const stageStatus = await RewardStageService.getUserAvailableStages();
+            const stageStats = await RewardStageService.getStageStats();
+
+            // 为每个商品添加可兑换状态和锁定信息
+            const itemsWithStatus = items.map(item => {
+                const isUnlocked = stageStatus.availableStages.includes(item.stage);
+                const hasStock = item.stock > 0;
+                const canExchange = isUnlocked && hasStock;
                 
-            // 如果指定了 isLimited 参数，则添加过滤条件
-            if (isLimitedFilter !== undefined) {
-                queryBuilder = queryBuilder.andWhere('item.isLimited = :isLimited', { isLimited: isLimitedFilter });
-            }
-            
-            queryBuilder = queryBuilder
-                .skip((pageNum - 1) * limitNum)
-                .take(limitNum);
+                let lockReason = null;
+                if (!isUnlocked) {
+                    lockReason = `需要完成第${item.stage - 1}阶段所有兑换`;
+                } else if (!hasStock) {
+                    lockReason = '库存不足';
+                }
 
-            const [items, total] = await queryBuilder.getManyAndCount();
-
-            if (items.length === 0) {
-                return reply.send({
-                    success: true,
-                    data: {
-                        items: [],
-                        currentStage: stageFilter,
-                        stage2Unlocked: stageFilter === 2,
-                        message: '暂无可兑换商品',
-                    }
-                });
-            }
+                return {
+                    id: item.id,
+                    name: item.name,
+                    description: item.description,
+                    pointsCost: item.pointsCost,
+                    couponType: item.couponType,
+                    couponValue: item.couponValue,
+                    conditionAmount: item.conditionAmount,
+                    stock: item.stock,
+                    stage: item.stage,
+                    isLimited: item.isLimited,
+                    isUnlocked,        // 是否已解锁
+                    hasStock,          // 是否有库存
+                    canExchange,       // 是否可以兑换
+                    lockReason,        // 锁定原因
+                    available: canExchange, // 保持向后兼容
+                    soldOut: !hasStock      // 保持向后兼容
+                };
+            });
 
             reply.send({
                 success: true,
                 data: {
-                    items: items.map(item => ({
-                        id: item.id,
-                        name: item.name,
-                        description: item.description,
-                        pointsCost: item.pointsCost,
-                        couponType: item.couponType,
-                        couponValue: item.couponValue,
-                        conditionAmount: item.conditionAmount,
-                        stock: item.stock,
-                        stage: item.stage,
-                        isLimited: item.isLimited
-                    })),
-                    currentStage: stageFilter,
-                    stage2Unlocked: stageFilter === 2
+                    items: itemsWithStatus,
+                    stage2Unlocked: stageStatus.stage2Unlocked,
+                    availableStages: stageStatus.availableStages,
+                    stageStats,
+                    pagination: {
+                        page: pageNum,
+                        limit: limitNum,
+                        total,
+                        totalPages: Math.ceil(total / limitNum)
+                    }
                 }
             });
         }
@@ -195,12 +182,19 @@ export const rewardRoutes: FastifyPluginAsync = async (fastify) => {
             });
             await userCouponRepo.save(userCoupon);
 
+            // 检查是否需要解锁第二阶段
+            const stageStatus = await RewardStageService.checkAndUnlockStage2();
+            const updatedStageInfo = await RewardStageService.getUserAvailableStages();
+
             reply.send({
                 success: true,
                 data: {
                     couponCode,
                     pointsCost: item.pointsCost,
                     newBalance: account.balance,
+                    stage2Unlocked: updatedStageInfo.stage2Unlocked,
+                    stageUnlockMessage: stageStatus.message,
+                    itemSoldOut: item.stock - 1 === 0 // 告知前端该商品是否售完
                 },
             });
         });

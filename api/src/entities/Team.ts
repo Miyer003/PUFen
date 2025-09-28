@@ -11,6 +11,9 @@ export class Team {
     @Column({ length: 50, type: 'varchar' })
     name: string; // 团队名称，最大长度50字符
 
+    @Column({ length: 10, type: 'varchar', unique: true, nullable: true })
+    inviteCode?: string; // 邀请码，唯一
+
     @Column({ type: 'datetime' })
     startTime: Date; // 团队创建/开始时间
 

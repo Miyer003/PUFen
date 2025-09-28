@@ -29,9 +29,11 @@ export const teamRoutes: FastifyPluginAsync = async (fastify) => {
             }
 
             // 创建团队
+            const inviteCode = 'INV' + Math.random().toString(36).substr(2, 6).toUpperCase();
             const team = teamRepo.create({
                 captainId: userId,
                 name: name,
+                inviteCode,
                 startTime: new Date(),
                 endTime: new Date(Date.now() + 3 * 60 * 60 * 1000),
                 totalPoints: 100,
@@ -150,6 +152,144 @@ export const teamRoutes: FastifyPluginAsync = async (fastify) => {
             });
         }
     );
+
+    // 通过邀请码加入团队
+    fastify.post(
+        '/teams/join-by-code',
+        async (req, reply) => {
+            const userId = req.user!.id;
+            const isNewUser = req.user!.isNewUser;
+            const { inviteCode } = req.body as { inviteCode: string };
+            const teamRepo = AppDataSource.getRepository(Team);
+            const memberRepo = AppDataSource.getRepository(TeamMember);
+
+            const team = await teamRepo.findOneBy({ inviteCode, status: 'active' });
+            
+            if (!team) {
+                return reply.status(400).send({
+                    success: false,
+                    message: '邀请码无效或团队已过期'
+                });
+            }
+
+            const now = new Date();
+            if (new Date(team.endTime).getTime() < now.getTime()) {
+                return reply.status(400).send({
+                    success: false,
+                    message: '团队已过期'
+                });
+            }
+
+            // 检查是否已经加入
+            const exist = await memberRepo.findOneBy({
+                userId, teamId: team.id
+            });
+            if (exist) {
+                return reply.status(400).send({
+                    success: false,
+                    message: '已经是团队成员'
+                });
+            }
+
+            // 检查团队人数限制（假设最多6人）
+            const currentMemberCount = await memberRepo.count({
+                where: { teamId: team.id }
+            });
+            if (currentMemberCount >= 6) {
+                return reply.status(400).send({
+                    success: false,
+                    message: '团队已满员'
+                });
+            }
+
+            // 加入团队
+            const pointsEarned = isNewUser ? 70 : 30; // 新用户70分，老用户30分
+            const member = memberRepo.create({
+                teamId: team.id,
+                userId: userId,
+                role: 'member',
+                isNewUser,
+                pointsEarned,
+                joinedAt: new Date()
+            });
+            await memberRepo.save(member);
+
+            // 更新团队成员数
+            team.memberCount = currentMemberCount + 1;
+            await teamRepo.save(team);
+
+            return reply.send({
+                success: true,
+                data: {
+                    pointsEarned,
+                    teamInfo: {
+                        ...team,
+                        memberCount: team.memberCount,
+                        remainingTime: Math.max(0, Math.floor((new Date(team.endTime).getTime() - Date.now()) / 1000))
+                    },
+                    memberInfo: member
+                }
+            });
+        }
+    );
+
+    // 获取我的活跃团队
+    fastify.get(
+        '/teams/my-active',
+        async (req, reply) => {
+            const userId = req.user!.id;
+            const memberRepo = AppDataSource.getRepository(TeamMember);
+
+            // 查找用户参与的活跃团队
+            const member = await memberRepo
+                .createQueryBuilder('member')
+                .leftJoinAndSelect('member.team', 'team')
+                .where('member.userId = :userId', { userId })
+                .andWhere('team.status = :status', { status: 'active' })
+                .andWhere('team.endTime > :now', { now: new Date() })
+                .getOne();
+
+            if (!member || !member.team) {
+                return reply.send({
+                    success: true,
+                    data: null,
+                    message: '暂无活跃团队'
+                });
+            }
+
+            const team = member.team;
+            
+            // 获取团队所有成员
+            const allMembers = await memberRepo
+                .createQueryBuilder('member')
+                .leftJoinAndSelect('member.user', 'user')
+                .where('member.teamId = :teamId', { teamId: team.id })
+                .getMany();
+
+            const remainingTime = Math.max(0, Math.floor((new Date(team.endTime).getTime() - Date.now()) / 1000));
+
+            return reply.send({
+                success: true,
+                data: {
+                    team: {
+                        ...team,
+                        memberCount: allMembers.length,
+                        remainingTime
+                    },
+                    myRole: member.role,
+                    members: allMembers.map(m => ({
+                        id: m.id,
+                        username: m.user?.username || '未知用户',
+                        role: m.role,
+                        pointsEarned: m.pointsEarned,
+                        isNewUser: m.isNewUser,
+                        joinedAt: m.joinedAt
+                    }))
+                }
+            });
+        }
+    );
+
     fastify.get(
         '/teams/my',
         async (req, reply) => {

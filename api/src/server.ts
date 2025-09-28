@@ -4,6 +4,7 @@ import { startSigninConfigTask } from './tasks/signin.task';
 import { AppDataSource } from './config/db';
 import { buildWeekConfig } from './services/signin-config.service';
 import { startRewardListTask } from './tasks/reward.task';
+import { CouponExpiryTask } from './tasks/coupon-expiry.task';
 
 const PORT = Number(process.env.PORT) || 5000;
 
@@ -20,6 +21,7 @@ const start = async () => {
 start();
 startSigninConfigTask();
 startRewardListTask();
+CouponExpiryTask.start();
 
 app.listen({ port: PORT }, (err, address) => {
     if (err) {

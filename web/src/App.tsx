@@ -11,15 +11,19 @@ import Rules from '@/pages/Rules';
 import Profile from '@/pages/Profile';
 import Coupons from '@/pages/Coupons';
 import MobileDemo from '@/pages/MobileDemo';
+import InviteFriend from '@/pages/InviteFriend';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 const App: React.FC = () => {
   const { isAuthenticated, loading, initialize } = useAuthStore();
+  
+  console.log('App组件状态:', { isAuthenticated, loading });
 
   // 在应用启动时初始化认证状态
   React.useEffect(() => {
+    console.log('App初始化认证状态');
     initialize();
-  }, [initialize]);
+  }, []); // 移除initialize依赖，避免循环
 
   if (loading) {
     return (
@@ -80,6 +84,12 @@ const App: React.FC = () => {
           <Route path="/coupons" element={
             <ProtectedRoute>
               <Coupons />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/invite" element={
+            <ProtectedRoute>
+              <InviteFriend />
             </ProtectedRoute>
           } />
           

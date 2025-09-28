@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { message, Tabs } from 'antd';
+import { message, Tabs, Modal } from 'antd';
 import { LeftOutlined } from '@ant-design/icons';
 import styled from 'styled-components';
 import { SafeArea } from '../components/mobile';
@@ -154,6 +154,52 @@ const StatusBadge = styled.span<{ status: string }>`
   }}
 `;
 
+const CouponActions = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  justify-content: flex-end;
+`;
+
+const ActionButton = styled.button<{ variant?: 'primary' | 'secondary' }>`
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  ${props => {
+    if (props.variant === 'primary') {
+      return `
+        background: #4CAF50;
+        color: white;
+        
+        &:hover {
+          background: #45a049;
+          transform: translateY(-1px);
+        }
+      `;
+    } else {
+      return `
+        background: #f5f5f5;
+        color: #666;
+        
+        &:hover {
+          background: #e8e8e8;
+        }
+      `;
+    }
+  }}
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+`;
+
 const EmptyState = styled.div`
   text-align: center;
   padding: 60px 20px;
@@ -198,6 +244,34 @@ const Coupons: React.FC = () => {
     }
   };
 
+  const handleUseCoupon = async (coupon: UserCoupon) => {
+    try {
+      const response = await couponService.useCoupon(coupon.id);
+      if (response.success) {
+        message.success('优惠券使用成功！');
+        // 重新加载优惠券列表
+        loadCoupons();
+      } else {
+        message.error(response.message || '使用失败');
+      }
+    } catch (error) {
+      message.error('使用优惠券失败');
+      console.error('Use coupon error:', error);
+    }
+  };
+
+  const handleCopyCouponInfo = async (coupon: UserCoupon) => {
+    const couponInfo = `🎟️ 优惠券信息\n类型：${coupon.couponType}\n优惠金额：¥${formatAmount(coupon.discountAmount)}\n使用门槛：满¥${formatAmount(coupon.minimumAmount)}可用\n到期时间：${formatDate(coupon.expiryDate)}`;
+    
+    try {
+      await navigator.clipboard.writeText(couponInfo);
+      message.success('优惠券信息已复制');
+    } catch (err) {
+      console.error('复制失败:', err);
+      message.error('复制失败');
+    }
+  };
+
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
@@ -208,6 +282,15 @@ const Coupons: React.FC = () => {
   };
 
   const renderCouponList = (couponList: UserCoupon[], status: string) => {
+    if (loading) {
+      return (
+        <EmptyState>
+          <div className="icon">⏳</div>
+          <div className="text">加载中...</div>
+        </EmptyState>
+      );
+    }
+    
     if (couponList.length === 0) {
       return (
         <EmptyState>
@@ -217,26 +300,64 @@ const Coupons: React.FC = () => {
       );
     }
 
-    return couponList.map((coupon) => (
-      <CouponItem key={coupon.id} status={status}>
-        <CouponTitle>{coupon.couponType}</CouponTitle>
-        <CouponDetails>
-          <DiscountAmount>¥{formatAmount(coupon.discountAmount)}</DiscountAmount>
-          <MinimumAmount>满¥{formatAmount(coupon.minimumAmount)}可用</MinimumAmount>
-        </CouponDetails>
-        <CouponMeta>
-          <span>到期时间: {formatDate(coupon.expiryDate)}</span>
-          <StatusBadge status={status}>
-            {status === 'unused' ? '未使用' : status === 'used' ? '已使用' : '已过期'}
-          </StatusBadge>
-        </CouponMeta>
-        {coupon.usedAt && (
+    return couponList.map((coupon) => {
+      // 检查是否即将过期（午12小时内）
+      const expiryDate = new Date(coupon.expiryDate);
+      const now = new Date();
+      const hoursUntilExpiry = (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+      const isExpiringSoon = hoursUntilExpiry > 0 && hoursUntilExpiry <= 12;
+      
+      return (
+        <CouponItem key={coupon.id} status={status}>
+          <CouponTitle>{coupon.couponType}</CouponTitle>
+          <CouponDetails>
+            <DiscountAmount>¥{formatAmount(coupon.discountAmount)}</DiscountAmount>
+            <MinimumAmount>满¥{formatAmount(coupon.minimumAmount)}可用</MinimumAmount>
+          </CouponDetails>
           <CouponMeta>
-            <span>使用时间: {formatDate(coupon.usedAt)}</span>
+            <span style={{ color: isExpiringSoon ? '#ff4757' : '#999' }}>
+              到期时间: {formatDate(coupon.expiryDate)}
+              {isExpiringSoon && ' (即将过期)'}
+            </span>
+            <StatusBadge status={status}>
+              {status === 'unused' ? '未使用' : status === 'used' ? '已使用' : '已过期'}
+            </StatusBadge>
           </CouponMeta>
-        )}
-      </CouponItem>
-    ));
+          {coupon.usedAt && (
+            <CouponMeta>
+              <span>使用时间: {formatDate(coupon.usedAt)}</span>
+            </CouponMeta>
+          )}
+          
+          {/* 操作按钮 */}
+          <CouponActions>
+            <ActionButton 
+              variant="secondary" 
+              onClick={() => handleCopyCouponInfo(coupon)}
+            >
+              复制信息
+            </ActionButton>
+            
+            {status === 'unused' && (
+              <ActionButton 
+                variant="primary" 
+                onClick={() => {
+                  Modal.confirm({
+                    title: '确认使用优惠券？',
+                    content: `即将使用「${coupon.couponType}」优惠券，使用后不可撤回。`,
+                    onOk: () => handleUseCoupon(coupon),
+                    okText: '确认使用',
+                    cancelText: '取消'
+                  });
+                }}
+              >
+                使用优惠券
+              </ActionButton>
+            )}
+          </CouponActions>
+        </CouponItem>
+      );
+    });
   };
 
   const tabItems = [

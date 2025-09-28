@@ -83,6 +83,7 @@ export interface Team {
   id: string;
   captainId: string;
   name: string;
+  inviteCode: string;
   startTime: string;
   endTime: string;
   totalPoints: number;
@@ -117,6 +118,13 @@ export interface RewardItem {
   stage: number;
   isLimited: boolean;
   createdAt: string;
+  // 新增的状态属性
+  isUnlocked?: boolean;      // 是否已解锁
+  hasStock?: boolean;        // 是否有库存
+  canExchange?: boolean;     // 是否可以兑换
+  lockReason?: string | null; // 锁定原因
+  available?: boolean;       // 保持向后兼容
+  soldOut?: boolean;         // 保持向后兼容
 }
 
 export interface RewardRecord {
