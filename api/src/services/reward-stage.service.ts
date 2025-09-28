@@ -1,13 +1,10 @@
-// 奖励阶段管理服务
 import { AppDataSource } from '../config/db.js';
 import { RewardItem } from '../entities/RewardItem.js';
 import { MoreThan } from 'typeorm';
 
 export class RewardStageService {
-  /**
-   * 检查是否应该解锁第二阶段
-   * 规则：当第一阶段所有商品库存都为0时，解锁第二阶段
-   */
+  // 检查是否应该解锁第二阶段
+  // 当第一阶段所有商品库存都为0时，解锁第二阶段
   static async checkAndUnlockStage2(): Promise<{
     stage2Unlocked: boolean;
     message?: string;
@@ -57,9 +54,7 @@ export class RewardStageService {
     }
   }
   
-  /**
-   * 获取用户当前可访问的阶段
-   */
+  // 获取用户当前可访问的阶段
   static async getUserAvailableStages(): Promise<{
     availableStages: number[];
     currentMaxStage: number;
@@ -92,9 +87,7 @@ export class RewardStageService {
     }
   }
   
-  /**
-   * 获取阶段统计信息
-   */
+  // 获取阶段统计信息
   static async getStageStats(): Promise<{
     stage1: {
       totalItems: number;
@@ -151,9 +144,7 @@ export class RewardStageService {
     }
   }
   
-  /**
-   * 重置库存（用于测试或管理）
-   */
+   // 重置库存
   static async resetItemStock(itemId: string, newStock: number): Promise<boolean> {
     try {
       const rewardItemRepo = AppDataSource.getRepository(RewardItem);

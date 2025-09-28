@@ -1,4 +1,3 @@
-// 优惠券过期处理定时任务
 import * as cron from 'node-cron';
 import { AppDataSource } from '../config/db.js';
 import { CouponExpiryService } from '../services/coupon-expiry.service.js';
@@ -6,9 +5,6 @@ import { CouponExpiryService } from '../services/coupon-expiry.service.js';
 export class CouponExpiryTask {
   private static isRunning = false;
 
-  /**
-   * 启动优惠券过期处理任务
-   */
   static start(): void {
     console.log('[CouponExpiryTask] 启动优惠券过期处理定时任务');
 
@@ -82,9 +78,6 @@ export class CouponExpiryTask {
     }, 5000); // 等待5秒确保数据库连接已建立
   }
 
-  /**
-   * 停止定时任务（用于优雅关闭）
-   */
   static stop(): void {
     console.log('[CouponExpiryTask] 停止优惠券过期处理定时任务');
     cron.getTasks().forEach((task) => {
@@ -92,9 +85,7 @@ export class CouponExpiryTask {
     });
   }
 
-  /**
-   * 手动触发过期检查（用于测试）
-   */
+  // 手动触发过期检查
   static async runOnce(): Promise<void> {
     if (this.isRunning) {
       console.log('[CouponExpiryTask] 任务正在运行中，请稍后再试');

@@ -16,7 +16,7 @@ export const teamRoutes: FastifyPluginAsync = async (fastify) => {
         return Math.random().toString(36).substring(2, 8).toUpperCase();
     };
 
-    // 积分处理辅助函数
+    // 积分
     const addPointsToUser = async (userId: string, points: number, description: string, relatedId: string) => {
         const pointsAccountRepo = AppDataSource.getRepository(PointsAccount);
         const pointsTransactionRepo = AppDataSource.getRepository(PointsTransaction);
@@ -53,11 +53,10 @@ export const teamRoutes: FastifyPluginAsync = async (fastify) => {
         });
         await pointsTransactionRepo.save(transaction);
 
-        console.log(`[积分系统] 用户 ${userId} 获得 ${points} 积分: ${description}，余额 ${balanceBefore} → ${account.balance}`);
         return account.balance;
     };
 
-    // 创建团队记录的辅助函数
+    // 团队记录
     const createTeamRecord = async (team: Team, members: TeamMember[]) => {
         const teamRecordRepo = AppDataSource.getRepository(TeamRecord);
         const records: TeamRecord[] = [];
@@ -78,7 +77,6 @@ export const teamRoutes: FastifyPluginAsync = async (fastify) => {
         }
 
         await teamRecordRepo.save(records);
-        console.log(`[团队系统] 为团队 "${team.name}" 创建了 ${records.length} 条团队记录`);
         return records;
     };
 
@@ -143,8 +141,6 @@ export const teamRoutes: FastifyPluginAsync = async (fastify) => {
                 team.id
             );
 
-            console.log(`[团队系统] 队长 ${userId} 创建团队 "${team.name}" 并获得 50 积分，当前余额: ${newBalance}`);
-
             return reply.status(201).send({
                 success: true,
                 data: {
@@ -164,24 +160,19 @@ export const teamRoutes: FastifyPluginAsync = async (fastify) => {
         '/teams/join-by-code',
         async (req, reply) => {
             const userId = req.user!.id;
-            const isNewUser = req.user!.isNewUser || false;
+            let isNewUser = req.user!.isNewUser || false;
             const { inviteCode } = req.body as { inviteCode: string };
             const teamRepo = AppDataSource.getRepository(Team);
             const memberRepo = AppDataSource.getRepository(TeamMember);
 
-            console.log(`[团队系统] 用户 ${userId} 尝试使用邀请码 ${inviteCode} 加入团队`);
-
             // 查找团队
             const team = await teamRepo.findOneBy({ inviteCode, status: 'active' });
             if (!team) {
-                console.log(`[团队系统] 邀请码 ${inviteCode} 无效或团队已过期`);
                 return reply.status(400).send({
                     success: false,
                     message: '邀请码无效或团队已过期'
                 });
             }
-
-            console.log(`[团队系统] 找到团队: "${team.name}" (ID: ${team.id})`);
 
             // 检查团队是否过期
             const now = new Date();
@@ -190,7 +181,6 @@ export const teamRoutes: FastifyPluginAsync = async (fastify) => {
                 team.status = 'expired';
                 await teamRepo.save(team);
                 
-                console.log(`[团队系统] 团队 "${team.name}" 已过期`);
                 return reply.status(400).send({
                     success: false,
                     message: '团队已过期'
@@ -272,6 +262,12 @@ export const teamRoutes: FastifyPluginAsync = async (fastify) => {
             const memberDescription = isNewUser 
                 ? `新用户加入团队「${team.name}」获得奖励` 
                 : `加入团队「${team.name}」获得奖励`;
+            
+            if (isNewUser) {
+                const userRepo = AppDataSource.getRepository(User);
+                await userRepo.update(userId, { isNewUser: false }); 
+            }
+
             const newBalance = await addPointsToUser(
                 userId, 
                 memberPoints, 
@@ -284,7 +280,6 @@ export const teamRoutes: FastifyPluginAsync = async (fastify) => {
             if (updatedMemberCount >= 3) {
                 team.status = 'completed';
                 await teamRepo.save(team);
-                console.log(`[团队系统] 团队 "${team.name}" 已满员，自动设置为完成状态`);
                 
                 // 创建团队记录
                 const allMembers = await memberRepo.find({ where: { teamId: team.id } });
@@ -292,10 +287,6 @@ export const teamRoutes: FastifyPluginAsync = async (fastify) => {
             }
 
             const remainingTime = Math.max(0, Math.floor((team.endTime.getTime() - Date.now()) / 1000));
-
-            console.log(`[团队系统] 用户 ${userId} 成功加入团队 "${team.name}"`);
-            console.log(`[团队系统] 新成员获得 ${memberPoints} 积分，当前余额: ${newBalance}，队长获得 ${captainBonusPoints} 奖励积分`);
-            console.log(`[团队系统] 团队 "${team.name}" 现在有 ${updatedMemberCount}/3 名成员`);
 
             return reply.send({
                 success: true,
@@ -373,8 +364,6 @@ export const teamRoutes: FastifyPluginAsync = async (fastify) => {
             team.inviteCode = newInviteCode;
             team.endTime = newEndTime;
             await teamRepo.save(team);
-
-            console.log(`[团队系统] 队长 ${userId} 刷新了团队 "${team.name}" 的邀请码: ${newInviteCode}`);
 
             return reply.send({
                 success: true,

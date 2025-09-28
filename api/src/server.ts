@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import app from './app';
-import { startSigninConfigTask } from './tasks/signin.task';
+import { startResetConfigTask } from './tasks/signin.task';
 import { AppDataSource } from './config/db';
 import { buildWeekConfig } from './services/signin-config.service';
 import { startRewardListTask } from './tasks/reward.task';
@@ -18,9 +18,9 @@ const start = async () => {
         process.exit(1);
     }
 };
+
 start();
-startSigninConfigTask();
-startRewardListTask();
+startResetConfigTask();
 CouponExpiryTask.start();
 
 app.listen({ port: PORT }, (err, address) => {

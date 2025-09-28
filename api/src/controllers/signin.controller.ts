@@ -145,12 +145,12 @@ export const signinRoutes: FastifyPluginAsync = async (fastify) => {
             const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
             const todayKey = dayKeys[today.getDay()-1];
             
-            // 修复周日到周一的映射问题
-            const dayOfWeek = today.getDay(); // 0=周日, 1=周一, ..., 6=周六
-            const dayNumber = dayOfWeek === 0 ? 7 : dayOfWeek; // 转换为 1-7 (周一到周日)
+            // 修复周日NaN问题（multipiler = 0)
+            const dayOfWeek = today.getDay(); // 0=周日, 1=周一...
+            const dayNumber = dayOfWeek === 0 ? 7 : dayOfWeek; // 转换为 1-7
             const multiplier = (cfg as any)[`day${dayNumber}Multiplier`];
             
-            // 确保 multiplier 是有效数值，避免 NaN
+            // 避免 NaN
             if (typeof multiplier !== 'number' || isNaN(multiplier)) {
                 return reply.status(500).send({
                     success: false,
@@ -160,12 +160,11 @@ export const signinRoutes: FastifyPluginAsync = async (fastify) => {
             
             const pointsEarned = Math.floor(cfg.basePoints * multiplier);
 
-            // 连续签到奖励 - 修复逻辑
             let hasBonus = false;
             let bonusCoupon: string | null = null;
 
             // 计算连续签到天数（包括今天）
-            let continuous = 1; // 今天签到了，至少是1天
+            let continuous = 1;
             let check = new Date(today);
             check.setDate(check.getDate() - 1);
             while (true) {

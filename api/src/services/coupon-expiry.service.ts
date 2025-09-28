@@ -1,12 +1,10 @@
-// 优惠券过期处理服务
 import { AppDataSource } from '../config/db.js';
 import { UserCoupon } from '../entities/UserCoupon.js';
 import { LessThan } from 'typeorm';
 
 export class CouponExpiryService {
-  /**
-   * 处理过期的优惠券
-   */
+
+  // 处理过期的优惠券
   static async processExpiredCoupons(): Promise<void> {
     try {
       const userCouponRepo = AppDataSource.getRepository(UserCoupon);
@@ -18,8 +16,6 @@ export class CouponExpiryService {
           expiryDate: LessThan(new Date())
         }
       });
-
-      console.log(`[CouponExpiry] 发现 ${expiredCoupons.length} 张过期优惠券`);
 
       if (expiredCoupons.length > 0) {
         // 批量更新为过期状态
@@ -33,12 +29,7 @@ export class CouponExpiryService {
             updatedAt: new Date()
           }
         );
-
-        console.log(`[CouponExpiry] 已将 ${expiredCoupons.length} 张优惠券标记为过期`);
-        
-        // 输出详细信息
         expiredCoupons.forEach(coupon => {
-          console.log(`  - 用户ID: ${coupon.userId}, 类型: ${coupon.couponType}, 过期时间: ${coupon.expiryDate}`);
         });
       }
     } catch (error) {
@@ -46,9 +37,7 @@ export class CouponExpiryService {
     }
   }
 
-  /**
-   * 获取即将过期的优惠券统计（24小时内过期）
-   */
+  //获取即将过期的优惠券统计（24小时内过期） 
   static async getExpiringSoonStats(): Promise<{
     count: number;
     coupons: UserCoupon[];
@@ -77,9 +66,8 @@ export class CouponExpiryService {
     }
   }
 
-  /**
-   * 清理过期优惠券（删除过期超过30天的优惠券记录）
-   */
+
+  // 清理长时间过期优惠券（删除过期超过30天的优惠券记录）
   static async cleanupOldExpiredCoupons(): Promise<void> {
     try {
       const userCouponRepo = AppDataSource.getRepository(UserCoupon);
@@ -100,9 +88,7 @@ export class CouponExpiryService {
     }
   }
 
-  /**
-   * 获取优惠券统计信息
-   */
+  // 获取优惠券统计信息
   static async getCouponStats(): Promise<{
     total: number;
     unused: number;

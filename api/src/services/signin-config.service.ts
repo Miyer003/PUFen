@@ -1,6 +1,6 @@
 import { SignInConfig } from "../entities/SignInConfig";
 import { AppDataSource } from "../config/db";
-
+// 周一自动随机生成本周签到配置
 export async function buildWeekConfig(): Promise<SignInConfig> {
     const repo = AppDataSource.getRepository(SignInConfig);
 

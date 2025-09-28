@@ -131,7 +131,7 @@ export const recordsRoutes: FastifyPluginAsync = async (fastify) => {
         }
     );
 
-    // 团队记录接口
+    // 组队记录
     fastify.get(
         '/records/team',
         {

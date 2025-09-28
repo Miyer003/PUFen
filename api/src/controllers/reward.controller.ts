@@ -23,16 +23,16 @@ export const rewardRoutes: FastifyPluginAsync = async (fastify) => {
             const pageNum = Number(page);
             const limitNum = Number(limit);
 
-            // 获取当前用户的奖励商品（包括锁定的第二阶段）
+            // 获取当前用户可兑换商品列表
             const repo = AppDataSource.getRepository(RewardItem);
             const [items, total] = await repo.findAndCount({
-                where: { userId }, // 只查询当前用户的奖励物品
+                where: { userId }, 
                 order: { stage: 'ASC', pointsCost: 'ASC' },
                 skip: (pageNum - 1) * limitNum,
                 take: limitNum
             });
 
-            // 检查阶段解锁状态
+            // 阶段解锁状态
             const stageStatus = await RewardStageService.getUserAvailableStages();
             const stageStats = await RewardStageService.getStageStats();
 
@@ -60,10 +60,10 @@ export const rewardRoutes: FastifyPluginAsync = async (fastify) => {
                     stock: item.stock,
                     stage: item.stage,
                     isLimited: item.isLimited,
-                    isUnlocked,        // 是否已解锁
-                    hasStock,          // 是否有库存
-                    canExchange,       // 是否可以兑换
-                    lockReason,        // 锁定原因
+                    isUnlocked,
+                    hasStock,
+                    canExchange,
+                    lockReason,
                     available: canExchange, // 保持向后兼容
                     soldOut: !hasStock      // 保持向后兼容
                 };
