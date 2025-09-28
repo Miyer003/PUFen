@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Form, Input, Button, message } from 'antd';
 import { LockOutlined, PhoneOutlined } from '@ant-design/icons';
 import styled from 'styled-components';
@@ -94,6 +94,7 @@ const Footer = styled.div`
 const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuthStore();
+  const navigate = useNavigate();
 
   const onFinish = async (values: LoginRequest) => {
     try {
@@ -105,8 +106,8 @@ const Login: React.FC = () => {
         login(response.token, response.data);
         message.success('登录成功！');
         
-        // 直接重定向到主页
-        window.location.href = '/';
+        // 使用React Router导航，保持store状态
+        navigate('/', { replace: true });
       } else {
         message.error(response.message || '登录失败');
       }

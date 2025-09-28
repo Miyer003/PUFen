@@ -23,9 +23,10 @@ export const rewardRoutes: FastifyPluginAsync = async (fastify) => {
             const pageNum = Number(page);
             const limitNum = Number(limit);
 
-            // 获取所有奖励商品（包括锁定的第二阶段）
+            // 获取当前用户的奖励商品（包括锁定的第二阶段）
             const repo = AppDataSource.getRepository(RewardItem);
             const [items, total] = await repo.findAndCount({
+                where: { userId }, // 只查询当前用户的奖励物品
                 order: { stage: 'ASC', pointsCost: 'ASC' },
                 skip: (pageNum - 1) * limitNum,
                 take: limitNum

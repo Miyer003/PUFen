@@ -7,6 +7,7 @@ import { signToken } from '../utils/jwt';
 import { loginBodyDto, registerBodyDto } from '../dto/auth.dto';
 import { authHook } from '../middleware/auth.hook';
 import bcrypt from 'bcrypt';
+import { rebuildRewardItem } from '../services/reward-list.service';
 
 export const authRoutes: FastifyPluginAsync = async (fastify) => {
   // fastify.addHook('preHandler', authHook);
@@ -39,6 +40,15 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       const accountRepo = AppDataSource.getRepository(PointsAccount);
       const account = accountRepo.create({ userId: user.id });
       await accountRepo.save(account);
+
+      // 为新用户分配6种优惠券各1张
+      try {
+        await rebuildRewardItem(user.id);
+        console.log(`[NewUser] 新用户 ${user.username} 注册成功，已分配初始优惠券`);
+      } catch (error) {
+        console.error(`[NewUser] 为用户 ${user.username} 分配优惠券失败:`, error);
+        // 不影响注册流程，只记录错误
+      }
 
       const token = signToken({ userId: user.id });
 

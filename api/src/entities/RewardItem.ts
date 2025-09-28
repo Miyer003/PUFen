@@ -5,6 +5,9 @@ export class RewardItem {
     @PrimaryGeneratedColumn('uuid')
     id: string; // 商品ID，主键
 
+    @Column({ type: 'varchar', nullable: true })
+    userId?: string; // 所属用户ID，关联到具体用户
+
     @Column({ type: 'varchar', length: 100 })
     name: string; // 商品名称，如"满29减4优惠券"
 

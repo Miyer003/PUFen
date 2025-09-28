@@ -10,12 +10,15 @@ const WEEK_COUPONS = [
   { name: '满99减20', desc: '满99元减20元，有效期7天', points: 15, couponType: '满减券', couponValue: 20, condition: 99, stock: 1, stage: 2 as const },
 ];
 
-export async function rebuildRewardItem(): Promise<RewardItem> {
+export async function rebuildRewardItem(userId: string): Promise<RewardItem[]> {
   const repo = AppDataSource.getRepository(RewardItem);
 
-  await repo.clear();
+  // 清除该用户的现有奖励物品
+  await repo.delete({ userId });
+  
   const entities = WEEK_COUPONS.map(c =>
     repo.create({
+      userId,
       name: c.name,
       description: c.desc,
       pointsCost: c.points,
@@ -31,5 +34,5 @@ export async function rebuildRewardItem(): Promise<RewardItem> {
 
   await repo.save(entities);
 
-  return entities[0];
+  return entities;
 }

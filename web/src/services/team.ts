@@ -68,6 +68,17 @@ export const teamService = {
     return apiClient.get(`/teams/${teamId}`);
   },
 
+  // 刷新邀请码
+  async refreshInviteCode(): Promise<ApiResponse<{
+    teamName: string;
+    newInviteCode: string;
+    newEndTime: Date;
+    remainingTime: number;
+    message: string;
+  }>> {
+    return apiClient.put('/teams/refresh-invite-code');
+  },
+
   // 获取可加入的团队列表
   async getAvailableTeams(params?: {
     page?: number;
