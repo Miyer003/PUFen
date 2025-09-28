@@ -3,7 +3,6 @@ import {
   PointsAccount,
   SignInResponse,
   SignInConfig,
-  MakeUpRequest,
   ApiResponse,
   PaginatedResponse,
 } from '@/types';
@@ -28,7 +27,6 @@ export const pointsService = {
       signed: boolean;
       points: number;
       isToday: boolean;
-      canMakeUp?: boolean;
     }>;
   }>> {
     return apiClient.get('/signin/status');
@@ -37,11 +35,6 @@ export const pointsService = {
   // 每日签到
   async signIn(): Promise<SignInResponse> {
     return apiClient.post('/signin');
-  },
-
-  // 补签
-  async makeUpSignIn(data: MakeUpRequest): Promise<SignInResponse> {
-    return apiClient.post('/signin/makeup', data);
   },
 
   // 获取积分流水记录

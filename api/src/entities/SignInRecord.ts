@@ -17,12 +17,6 @@ export class SignInRecord {
     @Column({ type: 'int' })
     pointsEarned: number; // 本次签到所获积分
 
-    @Column({ type: 'boolean', default: false })
-    isMakeUp: boolean; // 补签标识符
-
-    @Column({ type: 'int', nullable: true })
-    makeUpCost: number; // 补签消耗积分数
-
     @CreateDateColumn({ type: 'datetime' })
     createdAt: Date; // 签到时间
 }

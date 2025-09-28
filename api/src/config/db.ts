@@ -8,6 +8,7 @@ import { TeamMember } from '../entities/TeamMember';
 import { RewardItem } from '../entities/RewardItem';
 import { RewardRecord } from '../entities/RewardRecord';
 import { PointsTransaction } from '../entities/PointsTransaction';
+import { UserCoupon } from '../entities/UserCoupon';
 
 export const AppDataSource = new DataSource({
     type: 'sqlite',
@@ -23,6 +24,7 @@ export const AppDataSource = new DataSource({
         TeamMember,
         RewardItem,
         RewardRecord,
-        PointsTransaction
+        PointsTransaction,
+        UserCoupon
     ],
 });

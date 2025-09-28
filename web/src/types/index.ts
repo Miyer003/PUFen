@@ -78,11 +78,6 @@ export interface SignInResponse {
   };
 }
 
-export interface MakeUpRequest {
-  date: string;
-  method: 'points' | 'order';
-}
-
 // 组队相关类型
 export interface Team {
   id: string;

@@ -5,6 +5,7 @@ import {
   UnorderedListOutlined,
   QuestionCircleOutlined,
   UserOutlined,
+  GiftOutlined,
 } from '@ant-design/icons';
 import styled from 'styled-components';
 import { useAuthStore } from '@/store/auth';
@@ -175,7 +176,7 @@ const SignInCalendar = styled.div`
   margin-bottom: 20px;
 `;
 
-const DayItem = styled.div<{ isSignedIn?: boolean; isToday?: boolean; hasBonus?: boolean; canMakeUp?: boolean; isFuture?: boolean }>`
+const DayItem = styled.div<{ isSignedIn?: boolean; isToday?: boolean; hasBonus?: boolean; isFuture?: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -220,16 +221,6 @@ const DayItem = styled.div<{ isSignedIn?: boolean; isToday?: boolean; hasBonus?:
           color: white;
           box-shadow: 0 2px 8px rgba(79, 172, 254, 0.3);
           border: 2px solid #fff;
-        `;
-      } else if (props.canMakeUp) {
-        return `
-          background: linear-gradient(135deg, #ff9500 0%, #ff7b00 100%);
-          color: white;
-          box-shadow: 0 2px 8px rgba(255, 149, 0, 0.3);
-          border: 2px solid #fff;
-          &:hover {
-            transform: scale(1.05);
-          }
         `;
       } else if (props.isToday && !props.isSignedIn) {
         return `
@@ -287,13 +278,6 @@ const DayItem = styled.div<{ isSignedIn?: boolean; isToday?: boolean; hasBonus?:
         border: 2px solid white;
       }
     `}
-  }
-  
-  .makeup-text {
-    font-size: 10px;
-    color: #ff9500;
-    margin-top: 4px;
-    font-weight: 500;
   }
   
   .future-text {
@@ -503,8 +487,8 @@ const Points: React.FC = () => {
     }
   };
 
-  const handleSignIn = async (dayIndex?: number) => {
-    if (signInStatus?.todaySignedIn && dayIndex === undefined) {
+  const handleSignIn = async () => {
+    if (signInStatus?.todaySignedIn) {
       message.info('今日已签到');
       return;
     }
@@ -512,34 +496,17 @@ const Points: React.FC = () => {
     try {
       setLoading(true);
       
-      if (dayIndex !== undefined) {
-        // 补签逻辑
-        const date = new Date();
-        date.setDate(date.getDate() - (6 - dayIndex));
-        
-        const response = await pointsService.makeUpSignIn({
-          date: date.toISOString().split('T')[0],
-          method: 'points'
-        });
-        
-        if (response.success) {
-          vibrate(150); // 补签振动反馈
-          message.success(`补签成功！获得${response.data.pointsEarned}积分`);
-          loadData();
+      // 正常签到
+      const response = await pointsService.signIn();
+      
+      if (response.success) {
+        vibrate([100, 50, 100]); // 成功振动反馈
+        message.success(`签到成功！获得${response.data.pointsEarned}积分`);
+        if (response.data.hasBonus) {
+          vibrate([150, 50, 150, 50, 150]); // 奖励振动反馈
+          message.success(`连续签到奖励：${response.data.bonusCoupon}`);
         }
-      } else {
-        // 正常签到
-        const response = await pointsService.signIn();
-        
-        if (response.success) {
-          vibrate([100, 50, 100]); // 成功振动反馈
-          message.success(`签到成功！获得${response.data.pointsEarned}积分`);
-          if (response.data.hasBonus) {
-            vibrate([150, 50, 150, 50, 150]); // 奖励振动反馈
-            message.success(`连续签到奖励：${response.data.bonusCoupon}`);
-          }
-          loadData();
-        }
+        loadData();
       }
     } catch (error: any) {
       message.error(error?.message || '签到失败');
@@ -574,7 +541,6 @@ const Points: React.FC = () => {
     
     const isToday = dayStatus.isToday;
     const isSignedIn = dayStatus.signed;
-    const canMakeUp = dayStatus.canMakeUp;
     const points = dayStatus.points;
     
     // 判断是否是未来日期
@@ -596,8 +562,6 @@ const Points: React.FC = () => {
       }
       if (isToday && !isSignedIn) {
         handleSignIn();
-      } else if (canMakeUp) {
-        handleSignIn(dayIndex);
       } else if (isToday && isSignedIn) {
         message.info('今日已签到');
       }
@@ -609,7 +573,6 @@ const Points: React.FC = () => {
         isToday={isToday}
         isSignedIn={isSignedIn}
         hasBonus={hasBonus}
-        canMakeUp={canMakeUp}
         isFuture={isFuture}
         onClick={handleClick}
       >
@@ -626,7 +589,6 @@ const Points: React.FC = () => {
             <div style={{fontSize: '11px', fontWeight: 'bold'}}>+{expectedPoints}</div>
           )}
         </div>
-        {canMakeUp && <div className="makeup-text">补签</div>}
         {isFuture && <div className="future-text">未来</div>}
       </DayItem>
     );
@@ -640,16 +602,13 @@ const Points: React.FC = () => {
     
     const bonusDay = weeklyConfig.bonusDay;
     const continuousDays = signInStatus.continuousDays;
-    const todaySignedIn = signInStatus.todaySignedIn;
     
-    // 如果今天还没签到，连续天数需要加1来计算
-    const currentStreak = todaySignedIn ? continuousDays : continuousDays + 1;
-    
-    if (currentStreak >= bonusDay) {
+    // 修复逻辑：直接使用后端返回的连续天数
+    if (continuousDays >= bonusDay) {
       return `已获得${weeklyConfig.bonusCoupon}奖励！`;
     }
     
-    const daysLeft = bonusDay - currentStreak;
+    const daysLeft = bonusDay - continuousDays;
     return `再签${daysLeft}天可获${weeklyConfig.bonusCoupon}`;
   };
 
@@ -691,6 +650,11 @@ const Points: React.FC = () => {
                 <ActionButton onClick={() => navigate('/records')}>
                   <UnorderedListOutlined />
                   <span className="label">记录</span>
+                </ActionButton>
+                
+                <ActionButton onClick={() => navigate('/coupons')}>
+                  <GiftOutlined />
+                  <span className="label">券</span>
                 </ActionButton>
                 
                 <ActionButton onClick={() => navigate('/rules')}>

@@ -4,6 +4,7 @@ import { SignInConfig } from "../entities/SignInConfig";
 import { SignInRecord } from "../entities/SignInRecord";
 import { PointsAccount } from '../entities/PointsAccount';
 import { PointsTransaction } from '../entities/PointsTransaction';
+import { UserCoupon } from '../entities/UserCoupon';
 import { authHook } from "../middleware/auth.hook";
 
 export const signinRoutes: FastifyPluginAsync = async (fastify) => {
@@ -56,9 +57,16 @@ export const signinRoutes: FastifyPluginAsync = async (fastify) => {
                     signInDate: now
                 }));
 
-            // continuousDays
+            // continuousDays - 修复逻辑，包含补签
             let continuous = 0;
             let check = new Date(now);
+            
+            // 如果今天已签到，先加1
+            if (todaySigned) {
+                continuous = 1;
+            }
+            
+            // 向前检查连续签到（包括补签）
             check.setDate(check.getDate() - 1);
             while (true) {
                 const hit = await 
@@ -82,21 +90,19 @@ export const signinRoutes: FastifyPluginAsync = async (fastify) => {
                         signInDate: d,
                     });
                 const isToday = d.toDateString() === now.toDateString();
-                const canMakeUp = !record && d < now; // 过去且未签
                 weekStatus.push({
                     date: d.toISOString().slice(0, 10),
                     signed: !!record,
                     points: record?.pointsEarned || 0,
                     isToday,
-                    canMakeUp,
                 });
             }
 
             reply.send({
                 success: true,
                 data: {
-                    todaySigned,
-                    continuousDays: todaySigned ? continuous + 1 : 0,
+                    todaySignedIn: todaySigned,
+                    continuousDays: continuous,
                     weekStatus,
                 }
             });
@@ -154,12 +160,12 @@ export const signinRoutes: FastifyPluginAsync = async (fastify) => {
             
             const pointsEarned = Math.floor(cfg.basePoints * multiplier);
 
-            // 连续签到奖励
+            // 连续签到奖励 - 修复逻辑
             let hasBonus = false;
             let bonusCoupon: string | null = null;
 
-            //
-            let continuous = 0;
+            // 计算连续签到天数（包括今天）
+            let continuous = 1; // 今天签到了，至少是1天
             let check = new Date(today);
             check.setDate(check.getDate() - 1);
             while (true) {
@@ -173,8 +179,8 @@ export const signinRoutes: FastifyPluginAsync = async (fastify) => {
                 check.setDate(check.getDate() - 1);    
             }
             
-            // 修复连续签到奖励判断
-            if (dayNumber === cfg.bonusDay) {
+            // 检查是否达到奖励天数
+            if (continuous >= cfg.bonusDay) {
                 hasBonus = true;
                 bonusCoupon = cfg.bonusCoupon;
             }
@@ -185,8 +191,6 @@ export const signinRoutes: FastifyPluginAsync = async (fastify) => {
                 configId: cfg.id,
                 signInDate: today,
                 pointsEarned,
-                isMakeUp: false,
-                makeUpCost: null
             });
             await AppDataSource.getRepository(SignInRecord).save(record);
 
@@ -215,142 +219,44 @@ export const signinRoutes: FastifyPluginAsync = async (fastify) => {
                     balanceAfter: (await account).balance
                 })
             );
+            
+            // 发放连续签到奖励券
+            if (hasBonus && bonusCoupon) {
+                // 解析券信息（例如：满29减4）
+                const couponMatch = bonusCoupon.match(/满(\d+)减(\d+)/);
+                if (couponMatch) {
+                    const minimumAmount = parseInt(couponMatch[1]) * 100; // 转换为分
+                    const discountAmount = parseInt(couponMatch[2]) * 100; // 转换为分
+                    
+                    // 设置券的有效期（30天）
+                    const expiryDate = new Date();
+                    expiryDate.setDate(expiryDate.getDate() + 30);
+                    
+                    const couponRepo = AppDataSource.getRepository(UserCoupon);
+                    await couponRepo.save(
+                        couponRepo.create({
+                            userId,
+                            couponType: bonusCoupon,
+                            discountAmount,
+                            minimumAmount,
+                            status: 'unused',
+                            expiryDate,
+                            source: 'signin',
+                            relatedId: record.id
+                        })
+                    );
+                }
+            }
 
             reply.send({
                 success: true,
                 data: {
                     pointsEarned,
-                    continuousDays: continuous + 1,
+                    continuousDays: continuous,
                     hasBonus,
                     bonusCoupon,
                 },
             });
-
-
-
         }
     );
-
-    fastify.post(
-        '/signin/makeup', 
-        { 
-            preHandler: authHook
-        },
-        async (req, reply) => {
-            const userId = req.user!.id;
-            const { date, method } = req.body as { date: string; method: 'points' | 'order' };
-
-            // 只能补过去7天
-            const target = new Date(date);
-            const now = new Date();
-            now.setHours(0, 0, 0, 0);
-            const sevenDaysAgo = new Date(now);
-            sevenDaysAgo.setDate(now.getDate() - 7);
-            if (target < sevenDaysAgo || target >= now) {
-                return reply.status(400).send({ 
-                    success: false,
-                    message: '只能补签过去7天内'
-                });
-            }
-
-            // 已签
-            const exist = await AppDataSource.getRepository(SignInRecord).findOneBy({
-                userId,
-                signInDate: target,
-            });
-            if (exist) return reply.status(400).send({
-                success: false,
-                message: '该日期已签到'
-            });
-
-            // 取配置
-            const cfg = await AppDataSource.getRepository(SignInConfig).findOne({
-                where: {},
-                order: { createdAt: 'DESC' },
-            });
-            if (!cfg) return reply.status(404).send({
-                success: false,
-                message: '暂无配置'
-            });
-
-            // points方式扣积分
-            let pointsCost = 0;
-            if (method === 'points') {
-                pointsCost = 5;
-                const accountRepo = AppDataSource.getRepository(PointsAccount);
-                const account = await accountRepo.findOneBy({ userId });
-                if (!account) throw new Error('积分账户不存在');
-                if (account.balance < pointsCost) {
-                return reply.status(400).send({ success: false, message: '积分不足' });
-                }
-
-                const balanceBefore = account.balance;
-                account.balance -= pointsCost;
-                account.totalUsed += pointsCost;
-                await accountRepo.save(account);
-
-                // 支出流水
-                await AppDataSource.getRepository(PointsTransaction).save(
-                    AppDataSource.getRepository(PointsTransaction).create({
-                        userId,
-                        accountId: account.id,
-                        amount: -pointsCost,
-                        type: 'use',
-                        source: 'makeup',
-                        relatedId: '', // 先空，后面补记录 ID
-                        description: '补签消耗 5 积分',
-                        balanceBefore,
-                        balanceAfter: account.balance,
-                    })
-                );
-            }
-
-            // 算积分（同正常签到倍数）
-            const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-            const targetKey = dayKeys[target.getDay() - 1];
-            
-            // 修复周日到周一的映射问题（补签）
-            const targetDayOfWeek = target.getDay(); // 0=周日, 1=周一, ..., 6=周六
-            const targetDayNumber = targetDayOfWeek === 0 ? 7 : targetDayOfWeek; // 转换为 1-7 (周一到周日)
-            const multiplier = (cfg as any)[`day${targetDayNumber}Multiplier`];
-            
-            // 确保 multiplier 是有效数值，避免 NaN
-            if (typeof multiplier !== 'number' || isNaN(multiplier)) {
-                return reply.status(500).send({
-                    success: false,
-                    message: '签到配置错误，请联系管理员'
-                });
-            }
-            
-            const pointsEarned = Math.floor(cfg.basePoints * multiplier);
-
-            // 写补签记录
-            const record = AppDataSource.getRepository(SignInRecord).create({
-                userId,
-                configId: cfg.id,
-                signInDate: target,
-                pointsEarned,
-                isMakeUp: true,
-                makeUpCost: method === 'points' ? pointsCost : (method === 'order' ? null : null),
-            });
-            await AppDataSource.getRepository(SignInRecord).save(record);
-
-            // 更新流水 relatedId（补填）
-            if (method === 'points') {
-                await AppDataSource.getRepository(PointsTransaction).update(
-                { userId, source: 'makeup', relatedId: '' },
-                { relatedId: record.id }
-                );
-            }
-
-            // 返回结果
-            reply.send({
-                success: true,
-                data: {
-                pointsEarned,
-                pointsCost: method === 'points' ? pointsCost : null,
-                bonusCoupon: null, // 补签不发券
-                },
-            });
-        });
-    }
+};

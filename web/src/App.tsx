@@ -9,6 +9,7 @@ import Points from '@/pages/Points';
 import Records from '@/pages/Records';
 import Rules from '@/pages/Rules';
 import Profile from '@/pages/Profile';
+import Coupons from '@/pages/Coupons';
 import MobileDemo from '@/pages/MobileDemo';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
@@ -73,6 +74,12 @@ const App: React.FC = () => {
           <Route path="/profile" element={
             <ProtectedRoute>
               <Profile />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/coupons" element={
+            <ProtectedRoute>
+              <Coupons />
             </ProtectedRoute>
           } />
           

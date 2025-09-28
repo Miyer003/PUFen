@@ -12,7 +12,6 @@ interface PointsState {
       signed: boolean;
       points: number;
       isToday: boolean;
-      canMakeUp?: boolean;
     }>;
   } | null;
   loading: boolean;
@@ -28,7 +27,6 @@ interface PointsState {
       signed: boolean;
       points: number;
       isToday: boolean;
-      canMakeUp?: boolean;
     }>;
   }) => void;
   setLoading: (loading: boolean) => void;
