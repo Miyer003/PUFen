@@ -57,7 +57,7 @@ export const signinRoutes: FastifyPluginAsync = async (fastify) => {
                     signInDate: now
                 }));
 
-            // continuousDays - 修复逻辑，包含补签
+            // continuousDays
             let continuous = 0;
             let check = new Date(now);
             
@@ -66,7 +66,7 @@ export const signinRoutes: FastifyPluginAsync = async (fastify) => {
                 continuous = 1;
             }
             
-            // 向前检查连续签到（包括补签）
+            // 向前检查连续签到
             check.setDate(check.getDate() - 1);
             while (true) {
                 const hit = await 
@@ -228,9 +228,9 @@ export const signinRoutes: FastifyPluginAsync = async (fastify) => {
                     const minimumAmount = parseInt(couponMatch[1]) * 100; // 转换为分
                     const discountAmount = parseInt(couponMatch[2]) * 100; // 转换为分
                     
-                    // 设置券的有效期（30天）
+                    // 设置券的有效期
                     const expiryDate = new Date();
-                    expiryDate.setDate(expiryDate.getDate() + 30);
+                    expiryDate.setDate(expiryDate.getDate() + 7);
                     
                     const couponRepo = AppDataSource.getRepository(UserCoupon);
                     await couponRepo.save(

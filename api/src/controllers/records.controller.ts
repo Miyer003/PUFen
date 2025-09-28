@@ -46,7 +46,7 @@ export const recordsRoutes: FastifyPluginAsync = async (fastify) => {
             }
 
             reply.send({
-                seccess: true,
+                success: true,
                 data: {
                     records: records.map(tx => ({
                         id: tx.id,
@@ -62,7 +62,7 @@ export const recordsRoutes: FastifyPluginAsync = async (fastify) => {
                         page: pageNum,
                         limit: limitNum,
                         total,
-                        totalpage: Math.ceil(total / limit)
+                        totalPages: Math.ceil(total / limit)
                     }
                 }
             });

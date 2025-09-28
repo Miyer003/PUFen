@@ -26,7 +26,7 @@ export async function buildWeekConfig(): Promise<SignInConfig> {
         day6Multiplier: 0.6,
         day7Multiplier: 2.0,
         bonusDay,
-        bonusCoupon: '满29减4', // 写死
+        bonusCoupon: '满29减4',
     });
 
     return repo.save(cfg);

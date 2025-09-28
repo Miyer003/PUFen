@@ -12,6 +12,8 @@ import { useAuthStore } from '@/store/auth';
 import { usePointsStore } from '@/store/points';
 import { pointsService } from '@/services/points';
 import { teamService } from '@/services/team';
+import { rewardService } from '@/services/reward';
+import { RewardItem } from '@/types';
 import { PullToRefresh, SafeArea } from '../components/mobile';
 import { setPageTitle, vibrate } from '../utils/mobile';
 
@@ -151,15 +153,6 @@ const RemainderText = styled.div`
   color: rgba(255, 255, 255, 0.9);
   font-size: 14px;
   margin-bottom: 8px;
-`;
-
-const SignInReminder = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 14px;
 `;
 
 const ContentCard = styled.div`
@@ -304,50 +297,6 @@ const InviteSection = styled.div`
   }
 `;
 
-const RewardGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-bottom: 20px;
-`;
-
-const RewardItem = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 12px;
-  border-radius: 12px;
-  background: #f8f9fa;
-  cursor: pointer;
-  
-  .icon {
-    width: 32px;
-    height: 32px;
-    background: #ff6b6b;
-    border-radius: 8px;
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 14px;
-  }
-  
-  .title {
-    font-size: 12px;
-    color: #333;
-    text-align: center;
-    line-height: 1.2;
-  }
-  
-  .desc {
-    font-size: 10px;
-    color: #666;
-    text-align: center;
-    margin-top: 2px;
-  }
-`;
-
 const ExchangeSection = styled.div`
   margin-top: 20px;
   
@@ -450,6 +399,8 @@ const Points: React.FC = () => {
   const { user } = useAuthStore();
   const { pointsAccount, weeklyConfig, signInStatus } = usePointsStore();
   const [loading, setLoading] = useState(false);
+  const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
+  const [rewardsLoading, setRewardsLoading] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -480,10 +431,29 @@ const Points: React.FC = () => {
       if (statusRes.success && statusRes.data) {
         usePointsStore.getState().setSignInStatus(statusRes.data);
       }
+      
+      // 加载rewards数据
+      await loadRewards();
     } catch (error) {
       message.error('加载数据失败');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadRewards = async () => {
+    try {
+      setRewardsLoading(true);
+      const response = await rewardService.getRewardItems();
+      if (response.success && response.data) {
+        // 实际API返回的数据结构是 { items: [], currentStage: 1, stage2Unlocked: false }
+        const items = response.data.items || [];
+        setRewardItems(items);
+      }
+    } catch (error) {
+      console.error('加载商品列表失败:', error);
+    } finally {
+      setRewardsLoading(false);
     }
   };
 
@@ -529,6 +499,41 @@ const Points: React.FC = () => {
     }
   };
 
+  const handleExchange = async (rewardItem: RewardItem) => {
+    if (!pointsAccount) {
+      message.error('请先登录');
+      return;
+    }
+
+    if (pointsAccount.balance < rewardItem.pointsCost) {
+      message.error('积分不足，无法兑换');
+      return;
+    }
+
+    if (rewardItem.stock <= 0) {
+      message.error('商品库存不足');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await rewardService.exchangeReward({
+        rewardItemId: rewardItem.id
+      });
+
+      if (response.success) {
+        message.success(`兑换成功！优惠券码：${response.data.couponCode}`);
+        // 重新加载数据
+        await loadData();
+        await loadRewards();
+      }
+    } catch (error: any) {
+      message.error(error?.message || '兑换失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const renderDayItem = (dayIndex: number) => {
     const dayLabels = ['第1天', '第2天', '第3天', '第4天', '第5天', '第6天', '第7天'];
     
@@ -560,10 +565,20 @@ const Points: React.FC = () => {
         message.info('未来日期无法签到');
         return;
       }
-      if (isToday && !isSignedIn) {
-        handleSignIn();
-      } else if (isToday && isSignedIn) {
-        message.info('今日已签到');
+      
+      if (isToday) {
+        if (isSignedIn) {
+          message.info('今日已签到');
+        } else {
+          handleSignIn();
+        }
+      } else {
+        // 处理过去的日期
+        if (isSignedIn) {
+          message.info('该日期已签到');
+        } else {
+          message.info('无法补签');
+        }
       }
     };
 
@@ -594,22 +609,87 @@ const Points: React.FC = () => {
     );
   };
 
-  // 计算礼包提示信息
+  // 计算礼包提示信息 - 重新设计逻辑
   const getBonusReminder = () => {
     if (!weeklyConfig || !signInStatus) {
       return '签到可获取积分奖励';
     }
     
-    const bonusDay = weeklyConfig.bonusDay;
-    const continuousDays = signInStatus.continuousDays;
+    const bonusDay = weeklyConfig.bonusDay; // 奖励在周几 (1=周一, 7=周日)
+    const weekStatus = signInStatus.weekStatus;
     
-    // 修复逻辑：直接使用后端返回的连续天数
-    if (continuousDays >= bonusDay) {
-      return `已获得${weeklyConfig.bonusCoupon}奖励！`;
+    // 获取今天是周几 (1=周一, 7=周日)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayDayOfWeek = today.getDay() === 0 ? 7 : today.getDay();
+    
+    // 检查从周一到奖励日之前是否有漏签
+    const checkMissedDaysBeforeBonus = () => {
+      for (let i = 0; i < Math.min(bonusDay - 1, weekStatus.length); i++) {
+        const dayStatus = weekStatus[i];
+        const dayDate = new Date(dayStatus.date);
+        dayDate.setHours(0, 0, 0, 0);
+        
+        // 如果这一天已经过去了但是没有签到，就是漏签
+        if (dayDate <= today && !dayStatus.signed) {
+          return true;
+        }
+      }
+      return false;
+    };
+    
+    // 检查是否已经获得本周奖励（达到奖励日并且没有断签）
+    const hasReceivedBonus = () => {
+      if (todayDayOfWeek < bonusDay) {
+        return false; // 还没到奖励日
+      }
+      
+      // 检查从周一到奖励日是否连续签到
+      for (let i = 0; i < bonusDay && i < weekStatus.length; i++) {
+        if (!weekStatus[i].signed) {
+          return false;
+        }
+      }
+      return true;
+    };
+    
+    const hasMissedDays = checkMissedDaysBeforeBonus();
+    const receivedBonus = hasReceivedBonus();
+    
+    if (todayDayOfWeek < bonusDay) {
+      // 还没到奖励日
+      if (hasMissedDays) {
+        return `本周未能获取连续签到奖励`;
+      } else {
+        // 计算还需要签到几天
+        let signedDays = 0;
+        for (let i = 0; i < todayDayOfWeek && i < weekStatus.length; i++) {
+          if (weekStatus[i].signed) {
+            signedDays++;
+          }
+        }
+        const daysLeft = bonusDay - signedDays;
+        if (daysLeft <= 0) {
+          return `已满足条件，可获${weeklyConfig.bonusCoupon}奖励！`;
+        } else {
+          return `再签${daysLeft}天可获${weeklyConfig.bonusCoupon}`;
+        }
+      }
+    } else if (todayDayOfWeek === bonusDay) {
+      // 今天就是奖励日
+      if (receivedBonus) {
+        return `今日可获${weeklyConfig.bonusCoupon}奖励！`;
+      } else {
+        return `本周未能获得连续签到奖励`;
+      }
+    } else {
+      // 已经过了奖励日
+      if (receivedBonus) {
+        return `已获得${weeklyConfig.bonusCoupon}奖励！`;
+      } else {
+        return `本周未能获得连续签到奖励`;
+      }
     }
-    
-    const daysLeft = bonusDay - continuousDays;
-    return `再签${daysLeft}天可获${weeklyConfig.bonusCoupon}`;
   };
 
   const handleTitleLongPress = () => {
@@ -671,11 +751,6 @@ const Points: React.FC = () => {
             </PointsPig>
             
             <RemainderText>{getBonusReminder()}</RemainderText>
-            
-            <SignInReminder>
-              <QuestionCircleOutlined />
-              <span>签到提醒</span>
-            </SignInReminder>
           </PointsSection>
 
       <ContentCard>
@@ -687,77 +762,46 @@ const Points: React.FC = () => {
           邀请好友瓜分100积分
         </InviteSection>
 
-        <RewardGrid>
-          <RewardItem onClick={() => navigate('/demo')} style={{ gridColumn: 'span 4' }}>
-            <div className="icon" style={{ background: '#667eea' }}>📱</div>
-            <div className="title">移动端功能演示</div>
-            <div className="desc">H5特性展示</div>
-          </RewardItem>
-        </RewardGrid>
-
         <ExchangeSection>
           <div className="section-title">积分兑换区</div>
           
           <CouponGrid>
-            <CouponItem>
-              <div className="amount">¥4</div>
-              <div className="condition">满29元可用</div>
-              <div className="title">满29减4优惠券</div>
-              <div className="points">
-                <span>🪙 5积分</span>
+            {rewardsLoading ? (
+              <div style={{ textAlign: 'center', color: '#999', padding: '20px' }}>
+                加载中...
               </div>
-              <button className="exchange-btn">兑换</button>
-            </CouponItem>
-            
-            <CouponItem>
-              <div className="amount">¥6</div>
-              <div className="condition">满39元可用</div>
-              <div className="title">满39减6优惠券</div>
-              <div className="points">
-                <span>🪙 10积分</span>
+            ) : rewardItems.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#999', padding: '20px' }}>
+                暂无可兑换商品
               </div>
-              <button className="exchange-btn">兑换</button>
-            </CouponItem>
-            
-            <CouponItem>
-              <div className="amount">¥8</div>
-              <div className="condition">满59元可用</div>
-              <div className="title">满59减8优惠券</div>
-              <div className="points">
-                <span>🪙 15积分</span>
-              </div>
-              <button className="exchange-btn">兑换</button>
-            </CouponItem>
-            
-            <CouponItem>
-              <div className="amount">¥12</div>
-              <div className="condition">满89元可用</div>
-              <div className="title">满89减12优惠券</div>
-              <div className="points">
-                <span>🪙 20积分</span>
-              </div>
-              <button className="exchange-btn">兑换</button>
-            </CouponItem>
-            
-            <CouponItem>
-              <div className="amount">¥15</div>
-              <div className="condition">满119元可用</div>
-              <div className="title">满119减15优惠券</div>
-              <div className="points">
-                <span>🪙 25积分</span>
-              </div>
-              <button className="exchange-btn">兑换</button>
-            </CouponItem>
-            
-            <CouponItem>
-              <div className="amount">¥20</div>
-              <div className="condition">满149元可用</div>
-              <div className="title">满149减20优惠券</div>
-              <div className="points">
-                <span>🪙 30积分</span>
-              </div>
-              <button className="exchange-btn">兑换</button>
-            </CouponItem>
+            ) : (
+              rewardItems.map((item) => (
+                <CouponItem key={item.id}>
+                  <div className="amount">¥{item.couponValue}</div>
+                  <div className="condition">满{item.conditionAmount}元可用</div>
+                  <div className="title">{item.name}</div>
+                  <div className="points">
+                    <span>🪙 {item.pointsCost}积分</span>
+                  </div>
+                  <button 
+                    className="exchange-btn"
+                    onClick={() => handleExchange(item)}
+                    disabled={loading || (pointsAccount?.balance || 0) < item.pointsCost || item.stock <= 0}
+                    style={{
+                      opacity: (pointsAccount?.balance || 0) < item.pointsCost || item.stock <= 0 ? 0.5 : 1,
+                      cursor: loading || (pointsAccount?.balance || 0) < item.pointsCost || item.stock <= 0 ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {item.stock <= 0 ? '缺货' : loading ? '兑换中...' : '兑换'}
+                  </button>
+                  {item.stock <= 10 && item.stock > 0 && (
+                    <div style={{ fontSize: '10px', color: '#ff6b6b', marginTop: '4px' }}>
+                      仅剩{item.stock}件
+                    </div>
+                  )}
+                </CouponItem>
+              ))
+            )}
           </CouponGrid>
         </ExchangeSection>
       </ContentCard>

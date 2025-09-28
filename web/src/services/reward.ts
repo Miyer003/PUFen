@@ -14,8 +14,7 @@ export const rewardService = {
     stage?: number;
     isLimited?: boolean;
   }): Promise<ApiResponse<{
-    stage1Items: RewardItem[];
-    stage2Items: RewardItem[];
+    items: RewardItem[];
     currentStage: number;
     stage2Unlocked: boolean;
   }>> {

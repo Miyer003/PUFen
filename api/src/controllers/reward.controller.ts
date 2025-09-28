@@ -5,6 +5,7 @@ import { RewardItem } from "../entities/RewardItem";
 import { PointsAccount } from "../entities/PointsAccount";
 import { PointsTransaction } from "../entities/PointsTransaction";
 import { RewardRecord } from "../entities/RewardRecord";
+import { UserCoupon } from "../entities/UserCoupon";
 
 export const rewardRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.get(
@@ -176,6 +177,23 @@ export const rewardRoutes: FastifyPluginAsync = async (fastify) => {
                 status: 'active',
             });
             await recordRepo.save(record);
+
+            // 创建用户优惠券记录
+            const userCouponRepo = AppDataSource.getRepository(UserCoupon);
+            const expiryDate = new Date();
+            expiryDate.setDate(expiryDate.getDate() + (item.validityDays || 7)); // 默认7天有效期
+            
+            const userCoupon = userCouponRepo.create({
+                userId,
+                couponType: item.couponType,
+                discountAmount: item.couponValue * 100, // 转换为分
+                minimumAmount: item.conditionAmount * 100, // 转换为分  
+                status: 'unused',
+                expiryDate,
+                source: 'exchange',
+                relatedId: record.id
+            });
+            await userCouponRepo.save(userCoupon);
 
             reply.send({
                 success: true,

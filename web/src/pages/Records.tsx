@@ -4,9 +4,9 @@ import { Tabs, Empty, message } from 'antd';
 import { LeftOutlined } from '@ant-design/icons';
 import styled from 'styled-components';
 import dayjs from 'dayjs';
-import { pointsService } from '@/services/points';
 import { teamService } from '@/services/team';
 import { rewardService } from '@/services/reward';
+import { apiClient } from '@/services/api';
 
 const Container = styled.div`
   min-height: 100vh;
@@ -181,10 +181,8 @@ const Records: React.FC = () => {
       
       switch (activeTab) {
         case 'points':
-          const pointsRes = await pointsService.getPointsTransactions({
-            page: 1,
-            limit: 20,
-            type: 'earn'
+          const pointsRes = await apiClient.get('/records/points', {
+            params: { page: 1, limit: 20 }
           });
           if (pointsRes.success && pointsRes.data) {
             setPointsRecords(pointsRes.data.records);
@@ -259,7 +257,9 @@ const Records: React.FC = () => {
   const renderExchangeRecord = (record: any) => (
     <RecordItem key={record.id}>
       <div className="record-header">
-        <div className="record-title">{record.rewardItem?.name}</div>
+        <div className="record-title">
+          兑换：{record.rewardItemInfo?.name || record.rewardItem?.name || '未知商品'}
+        </div>
         <div className="points-change negative">
           -{record.pointsCost}积分
         </div>
@@ -269,9 +269,23 @@ const Records: React.FC = () => {
           {dayjs(record.createdAt).format('MM/DD HH:mm')}
         </div>
         <div className="record-balance">
-          {record.status === 'completed' ? '已完成' : '待处理'}
+          {record.status === 'completed' ? '已完成' : 
+           record.status === 'active' ? '已生效' : 
+           record.status === 'cancelled' ? '已取消' : '待处理'}
         </div>
       </div>
+      {record.couponCode && (
+        <div style={{ 
+          marginTop: '8px', 
+          fontSize: '12px', 
+          color: '#4CAF50',
+          backgroundColor: '#f1f8e9',
+          padding: '4px 8px',
+          borderRadius: '4px'
+        }}>
+          券码：{record.couponCode}
+        </div>
+      )}
     </RecordItem>
   );
 

@@ -20,7 +20,7 @@ async function insertCoupon(
     name,
     description: desc,
     pointsCost: points,
-    couponType, // 修正：应该是类型名称，不是优惠券名称
+    couponType,
     couponValue,
     conditionAmount: condition,
     stock,
