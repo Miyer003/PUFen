@@ -167,7 +167,7 @@ const SignInCalendar = styled.div`
   margin-bottom: 20px;
 `;
 
-const DayItem = styled.div<{ isSignedIn?: boolean; isToday?: boolean; hasBonus?: boolean; isFuture?: boolean }>`
+const DayItem = styled.div<{ isSignedIn?: boolean; isToday?: boolean; isPast?: boolean; hasBonus?: boolean; isFuture?: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -243,6 +243,13 @@ const DayItem = styled.div<{ isSignedIn?: boolean; isToday?: boolean; hasBonus?:
           border: 2px dashed #ddd;
           cursor: not-allowed;
         `;
+      } else if (props.isPast) {
+        return `
+          background: #f0f0f0;
+          color: #999;
+          border: 2px dashed #ddd;
+          opacity: 0.7;
+        `;
       } else {
         return `
           background: #f0f0f0;
@@ -271,10 +278,14 @@ const DayItem = styled.div<{ isSignedIn?: boolean; isToday?: boolean; hasBonus?:
     `}
   }
   
-  .future-text {
+  .future-text, .past-text {
     font-size: 10px;
     color: #ccc;
     margin-top: 4px;
+  }
+  
+  .past-text {
+    color: #999;
   }
 `;
 
@@ -673,18 +684,50 @@ const Points: React.FC = () => {
     const dayStatus = signInStatus.weekStatus[dayIndex];
     if (!dayStatus) return null;
     
-    const isToday = dayStatus.isToday;
     const isSignedIn = dayStatus.signed;
     const points = dayStatus.points;
     
-    // 判断是否是未来日期 - 修复时区问题
+    // 修正时区偏移问题的新逻辑
+    // 获取本地时区的今天日期字符串
     const today = new Date();
-    const todayDateString = today.getFullYear() + '-' + 
+    const todayString = today.getFullYear() + '-' + 
       String(today.getMonth() + 1).padStart(2, '0') + '-' + 
       String(today.getDate()).padStart(2, '0');
     
-    // dayStatus.date 是后端返回的 UTC 日期字符串，直接比较字符串避免时区转换
-    const isFuture = dayStatus.date > todayDateString;
+    // 找到后端标记为isToday的项，计算偏移量
+    let dateOffset = 0;
+    const todayItem = signInStatus.weekStatus.find(item => item.isToday);
+    if (todayItem && todayItem.date !== todayString) {
+      const backendTodayDate = new Date(todayItem.date);
+      const actualTodayDate = new Date(todayString);
+      dateOffset = Math.round((actualTodayDate.getTime() - backendTodayDate.getTime()) / (1000 * 60 * 60 * 24));
+    }
+    
+    // 修正当前项的日期
+    const originalDate = new Date(dayStatus.date);
+    const correctedDate = new Date(originalDate);
+    correctedDate.setDate(correctedDate.getDate() + dateOffset);
+    const itemDateString = correctedDate.getFullYear() + '-' + 
+      String(correctedDate.getMonth() + 1).padStart(2, '0') + '-' + 
+      String(correctedDate.getDate()).padStart(2, '0');
+    
+    const isFuture = itemDateString > todayString;
+    const isToday = itemDateString === todayString;
+    const isPast = itemDateString < todayString;
+    
+    // 调试信息
+    if (dayIndex <= 1) {
+      console.log(`第${dayIndex + 1}天日期判断:`, {
+        original: dayStatus.date,
+        dateOffset,
+        corrected: itemDateString,
+        todayString,
+        backendIsToday: dayStatus.isToday,
+        isToday,
+        isFuture,
+        isPast
+      });
+    }
     
     // 从配置中获取当天的积分倍数
     const multiplierKey = `day${dayIndex + 1}Multiplier` as keyof typeof weeklyConfig;
@@ -705,13 +748,16 @@ const Points: React.FC = () => {
         } else {
           handleSignIn();
         }
-      } else {
-        // 处理过去的日期
+        return;
+      }
+      
+      if (isPast) {
         if (isSignedIn) {
           message.info('该日期已签到');
         } else {
-          message.info('无法补签');
+          message.info('无法补签过去日期');
         }
+        return;
       }
     };
 
@@ -719,6 +765,7 @@ const Points: React.FC = () => {
       <DayItem
         key={dayIndex}
         isToday={isToday}
+        isPast={isPast}
         isSignedIn={isSignedIn}
         hasBonus={hasBonus}
         isFuture={isFuture}
@@ -733,11 +780,18 @@ const Points: React.FC = () => {
             </>
           ) : isFuture ? (
             <div style={{fontSize: '11px', color: '#ccc'}}>+{expectedPoints}</div>
+          ) : isToday ? (
+            <div style={{fontSize: '11px', fontWeight: 'bold', color: 'inherit'}}>+{expectedPoints}</div>
+          ) : isPast ? (
+            <div style={{fontSize: '11px', color: '#999', opacity: '0.6'}}>+{expectedPoints}</div>
           ) : (
             <div style={{fontSize: '11px', fontWeight: 'bold'}}>+{expectedPoints}</div>
           )}
         </div>
+        
+        {/* 状态提示文本 */}
         {isFuture && <div className="future-text">未来</div>}
+        {isPast && !isSignedIn && <div className="past-text">过去</div>}
       </DayItem>
     );
   };
