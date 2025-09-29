@@ -13,9 +13,11 @@ import { UserCoupon } from '../entities/UserCoupon';
 
 export const AppDataSource = new DataSource({
     type: 'sqlite',
-    database: 'points.db',
-    synchronize: true, // 开发环境自动修改表结构，生产环境需要关闭
-    logging: true,
+    database: process.env.NODE_ENV === 'production' 
+        ? '/var/data/pufen.db'      // Render 持久目录
+        : 'src/database/dev.db',    // 本地照旧
+    synchronize: true,            // 上线前需关闭
+    logging: false,
     entities: [
         User,
         PointsAccount,
