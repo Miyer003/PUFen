@@ -641,8 +641,11 @@ const Points: React.FC = () => {
         
         // 检查是否有新阶段解锁信息
         if (response.data.stage2Unlocked !== undefined) {
+          const wasUnlocked = stage2Unlocked;
           setStage2Unlocked(response.data.stage2Unlocked);
-          if (response.data.stage2Unlocked) {
+          
+          // 只有从未解锁到解锁时才显示解锁提示
+          if (!wasUnlocked && response.data.stage2Unlocked) {
             message.info('🎉 恭喜！第二阶段已解锁！');
           }
         }
@@ -674,10 +677,14 @@ const Points: React.FC = () => {
     const isSignedIn = dayStatus.signed;
     const points = dayStatus.points;
     
-    // 判断是否是未来日期
+    // 判断是否是未来日期 - 修复时区问题
     const today = new Date();
-    const dayDate = new Date(dayStatus.date);
-    const isFuture = dayDate > today;
+    const todayDateString = today.getFullYear() + '-' + 
+      String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+      String(today.getDate()).padStart(2, '0');
+    
+    // dayStatus.date 是后端返回的 UTC 日期字符串，直接比较字符串避免时区转换
+    const isFuture = dayStatus.date > todayDateString;
     
     // 从配置中获取当天的积分倍数
     const multiplierKey = `day${dayIndex + 1}Multiplier` as keyof typeof weeklyConfig;

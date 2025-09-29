@@ -3,7 +3,6 @@ import app from './app';
 import { startResetConfigTask } from './tasks/signin.task';
 import { AppDataSource } from './config/db';
 import { buildWeekConfig } from './services/signin-config.service';
-import { startRewardListTask } from './tasks/reward.task';
 import { CouponExpiryTask } from './tasks/coupon-expiry.task';
 
 const PORT = Number(process.env.PORT) || 5000;

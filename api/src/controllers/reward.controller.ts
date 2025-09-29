@@ -33,8 +33,8 @@ export const rewardRoutes: FastifyPluginAsync = async (fastify) => {
             });
 
             // 阶段解锁状态
-            const stageStatus = await RewardStageService.getUserAvailableStages();
-            const stageStats = await RewardStageService.getStageStats();
+            const stageStatus = await RewardStageService.getUserAvailableStages(userId);
+            const stageStats = await RewardStageService.getUserStageStats(userId);
 
             // 为每个商品添加可兑换状态和锁定信息
             const itemsWithStatus = items.map(item => {
@@ -184,8 +184,15 @@ export const rewardRoutes: FastifyPluginAsync = async (fastify) => {
             await userCouponRepo.save(userCoupon);
 
             // 检查是否需要解锁第二阶段
-            const stageStatus = await RewardStageService.checkAndUnlockStage2();
-            const updatedStageInfo = await RewardStageService.getUserAvailableStages();
+            console.log('[Debug] 兑换成功，检查阶段解锁状态...');
+            const stageStatus = await RewardStageService.checkAndUnlockStage2(userId);
+            const updatedStageInfo = await RewardStageService.getUserAvailableStages(userId);
+            
+            console.log('[Debug] 阶段状态检查结果:', {
+                stage2Unlocked: updatedStageInfo.stage2Unlocked,
+                stageUnlockMessage: stageStatus.message,
+                availableStages: updatedStageInfo.availableStages
+            });
 
             reply.send({
                 success: true,
